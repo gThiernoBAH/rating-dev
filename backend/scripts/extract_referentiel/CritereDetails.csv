@@ -1,0 +1,180 @@
+1|1|Connaissance insuffisante des procédures de travail|1.0
+2|1|Excellente connaissance des méthodes de travail|2.0
+3|1|Connaissance basique des procédures de travail|3.0
+4|1|Applique effectivement les méthodes de travail|4.0
+5|1|Connait les tâches et applique les procédures|5.0
+6|2|Rendement irrégulier. Manque de précision|1.0
+7|2|Agent efficace. Travail impécable, exemplaire, altruiste|2.0
+8|2|Rendement normal, pas grande valeur ajoutée|3.0
+9|2|Rendement satisfaisant. Travail propre et précis. Soigneux et ordonné|4.0
+10|2|Rendement moyen. Travail conforme|5.0
+11|3|Ne prend pas toujours de bonnes initiatives.|1.0
+12|3|Esprit vif et créatif|2.0
+13|3|Se limite à faire des propositions.|3.0
+14|3|Prend de bonnes initiatives et les applique.|4.0
+15|3|Assez bonnes initiatives. Pertinentes.|5.0
+16|4|Irrégulier, lent dans l'application des résolutions.|1.0
+17|4|Rendement soutenu. Agent efficace et productif.|2.0
+18|4|Rendement normal, peut mieux faire.|3.0
+19|4|Respecte les objectifs. Cherche à améliorer les délais.|4.0
+20|4|Rendement satisfaisant.|5.0
+41|5|Cherche souvent à fuir les responsabilités et renvoie à d'autres ses propres problèmes.|1.0
+42|5|Recherche les responsabilités et surmonte les difficultés rencontrées dans son activité.|2.0
+43|5|Accepte avec difficulté d'assumer ses responsabilités.|3.0
+44|5|Assume les conséquences de ses décisions. Sait faire face aux cas d'urgence.|4.0
+45|5|Assume les responsabilités qui lui incombent.|5.0
+21|6|Peu motivé. Montre peu d'intérêt.|1.0
+22|6|Très motivé. Soucieux de progresser|2.0
+23|6|Apprécie son travail, se plaint rarement|3.0
+24|6|S'implique.|4.0
+25|6|Aime son travail. A le souci de bien faire.|5.0
+46|7|Autorité souvent contestée.|1.0
+47|7|Leader, s'impose par l'exemple.|2.0
+48|7|Se sent parfois obligé de forcer le leadership.|3.0
+49|7|Bonne emprise sur ses collaborateurs.|4.0
+50|7|Leadership accepté.|5.0
+26|8|Retards et absences répétés. |1.0
+27|8|Assidu, disponible, ponctualité exemplaire.|2.0
+28|8|Quelques retards. rares abscences à son poste.|3.0
+29|8|Très rares absences. Ponctualité remarquable.|4.0
+30|8|Pas d'absences anormales à son poste.|5.0
+31|9|Accepte difficilement les ordres et les remarques.|1.0
+32|9|Connaît parfaitement le règlement et respecte les ordres.|2.0
+33|9|Parfois réticent aux ordres. Fait l'objet de quelques remarques.|3.0
+34|9|Se soumet facilement aux règlements et aux ordres donnés.|4.0
+35|9|Respect manifeste envers sa hiérarchie.|5.0
+36|10|Indifférent aux remarques et recommandations.|1.0
+37|10|Très courtois. Très bonne collaboration.|2.0
+38|10|S'associe peu au travail en équipe.|3.0
+39|10|Solidaire avec ses collègues. collaboration.|4.0
+40|10|Se montre disponible et ouvert au travail en équipe.|5.0
+51|11|Honore ses engagements professionnels|1.0
+52|11|Assume la responsabilité de ses actes|2.0
+53|11|Traite les personnes avec Dignité et Respect|3.0
+54|11|Pratique l'empathie et la solidarité|4.0
+55|11|Respecte son environnement de travail et les règles d'hygiène, de santé et sécurité au travail|5.0
+56|12|Est Passionné(e) et déterminé(e)|1.0
+57|12|Partage la mentatlité de Propriétaire|2.0
+58|12|Est totalement engagé dans le travail et les activités pendant les heures de travail|3.0
+59|12|Apporte son point de vue pour aider à la décision et soutient activement ce qui a été décidé|4.0
+60|12|Est prêt à faire des sacrifices pour atteindre des objectifs plus larges|5.0
+61|13|Est orienté sur le résultat et produit un travail extraordinaire|1.0
+62|13|Est fier de faire du bon travail et reconnait les victoires|2.0
+63|13|Travaille avec son Responsable pour fixer des objectifs|3.0
+64|13|Répond aux préoccupations et prendre ensemble des mesures d'amélioration|4.0
+65|13|Fait la différence|5.0
+66|14|S'exprime|1.0
+67|14|Cherche à comprendre avec curiosité et analyse en permanence son environnement|2.0
+68|14|Veux apprendre de nouvelles choses, acquérir de nouvelles compétences|3.0
+69|14|A proposé de nouvelles approches dans les méthodes, procédures de travail|4.0
+70|14|A effectué ou participé à un changement ou amélioration sur la période de référence|5.0
+71|15|Veille sur soi-même et sur les autres|1.0
+72|15|Traite le client avec respect|2.0
+73|15|Pratique l'écoute active lors des interactions|3.0
+74|15|Donne un Excellent Service Client|4.0
+75|15|Gagne la confiance de ses pairs à chaque interaction|5.0
+76|20|Très Insatisfaisant|7.0
+77|20|A améliorer|10.0
+78|20|Satisfaisant|13.0
+79|20|Excellent|16.0
+80|20|Top Performer|19.0
+76|21|Très Insatisfaisant|7.0
+77|21|A améliorer|10.0
+78|21|Satisfaisant|13.0
+79|21|Excellent|16.0
+80|21|Top Performer|19.0
+76|22|Très Insatisfaisant|7.0
+77|22|A améliorer|10.0
+78|22|Satisfaisant|13.0
+79|22|Excellent|16.0
+80|22|Top Performer|19.0
+76|23|Très Insatisfaisant|7.0
+77|23|A améliorer|10.0
+78|23|Satisfaisant|13.0
+79|23|Excellent|16.0
+80|23|Top Performer|19.0
+81|24|Non réalisé (0%)|1.0
+82|24|Débuté (25%)|2.0
+83|24|En partie (50%)|3.0
+84|24|Sur la bonne voie (75%)|4.0
+85|24|Atteint (100%)|5.0
+81|25|Non réalisé (0%)|1.0
+82|25|Débuté (25%)|2.0
+83|25|En partie (50%)|3.0
+84|25|Sur la bonne voie (75%)|4.0
+85|25|Atteint (100%)|5.0
+81|26|Non réalisé (0%)|1.0
+82|26|Débuté (25%)|2.0
+83|26|En partie (50%)|3.0
+84|26|Sur la bonne voie (75%)|4.0
+85|26|Atteint (100%)|5.0
+81|27|Non réalisé (0%)|1.0
+82|27|Débuté (25%)|2.0
+83|27|En partie (50%)|3.0
+84|27|Sur la bonne voie (75%)|4.0
+85|27|Atteint (100%)|5.0
+76|28|Très Insatisfaisant|7.0
+77|28|A améliorer|10.0
+78|28|Satisfaisant|13.0
+79|28|Excellent|16.0
+80|28|Top Performer|19.0
+76|29|Très Insatisfaisant|7.0
+77|29|A améliorer|10.0
+78|29|Satisfaisant|13.0
+79|29|Excellent|16.0
+80|29|Top Performer|19.0
+76|30|Très Insatisfaisant|7.0
+77|30|A améliorer|10.0
+78|30|Satisfaisant|13.0
+79|30|Excellent|16.0
+80|30|Top Performer|19.0
+76|31|Très Insatisfaisant|7.0
+77|31|A améliorer|10.0
+78|31|Satisfaisant|13.0
+79|31|Excellent|16.0
+80|31|Top Performer|19.0
+76|32|Très Insatisfaisant|7.0
+77|32|A améliorer|10.0
+78|32|Satisfaisant|13.0
+79|32|Excellent|16.0
+80|32|Top Performer|19.0
+76|33|Très Insatisfaisant|7.0
+77|33|A améliorer|10.0
+78|33|Satisfaisant|13.0
+79|33|Excellent|16.0
+80|33|Top Performer|19.0
+76|34|Très Insatisfaisant|7.0
+77|34|A améliorer|10.0
+78|34|Satisfaisant|13.0
+79|34|Excellent|16.0
+80|34|Top Performer|19.0
+76|35|Très Insatisfaisant|7.0
+77|35|A améliorer|10.0
+78|35|Satisfaisant|13.0
+79|35|Excellent|16.0
+80|35|Top Performer|19.0
+76|36|Très Insatisfaisant|7.0
+77|36|A améliorer|10.0
+78|36|Satisfaisant|13.0
+79|36|Excellent|16.0
+80|36|Top Performer|19.0
+76|37|Très Insatisfaisant|7.0
+77|37|A améliorer|10.0
+78|37|Satisfaisant|13.0
+79|37|Excellent|16.0
+80|37|Top Performer|19.0
+76|38|Très Insatisfaisant|7.0
+77|38|A améliorer|10.0
+78|38|Satisfaisant|13.0
+79|38|Excellent|16.0
+80|38|Top Performer|19.0
+76|39|Très Insatisfaisant|7.0
+77|39|A améliorer|10.0
+78|39|Satisfaisant|13.0
+79|39|Excellent|16.0
+80|39|Top Performer|19.0
+76|40|Très Insatisfaisant|7.0
+77|40|A améliorer|10.0
+78|40|Satisfaisant|13.0
+79|40|Excellent|16.0
+80|40|Top Performer|19.0

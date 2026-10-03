@@ -1,0 +1,79 @@
+<!-- 2026-10-02 — M4bis : CRITERE/COEFF./NOTE1/NOTE2/VALEUR1/VALEUR2/RATE (étoiles) ;
+     commentaires N et N+1 côte à côte ; totaux par profil ; note globale /5 ;
+     appréciation par paliers (émoticônes) ; badge divergence (annexe A.5). -->
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import api from '../api/client'
+
+const route = useRoute()
+const notation = ref(null)
+const erreur = ref('')
+const onglet = ref(null)
+
+onMounted(async () => {
+  try {
+    notation.value = (await api.get('/notations/' + route.params.evaluationId)).data
+    onglet.value = notation.value.profils[0]?.profil_libelle || null
+  } catch (e) { erreur.value = e.response?.data?.detail }
+})
+
+const profils = computed(() => {
+  const map = new Map()
+  for (const p of notation.value?.profils || []) {
+    if (!map.has(p.profil_libelle)) map.set(p.profil_libelle, { libelle: p.profil_libelle, lignes: [], p })
+    map.get(p.profil_libelle).lignes.push(...p.lignes)
+  }
+  return [...map.values()]
+})
+
+const etoiles = (n) => n ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
+</script>
+
+<template>
+  <div v-if="notation">
+    <div class="entete">
+      <div><b>N°</b> {{ notation.entete.numero }} — {{ notation.entete.nom }} ({{ notation.entete.matricule }})</div>
+      <div>
+        <span class="badge-warn">NOTE GLOBALE N : {{ notation.note_globale_n ?? '—' }}/5 {{ notation.appreciation_n || '' }}</span>
+        <span class="badge-warn">NOTE GLOBALE N+1 : {{ notation.note_globale_n1 ?? '—' }}/5 {{ notation.appreciation_n1 || '' }}</span>
+        <span v-if="notation.approbation" class="badge-warn">APPROBATION : {{ notation.approbation.decision }}</span>
+      </div>
+    </div>
+    <div v-if="erreur" class="error">{{ erreur }}</div>
+    <div class="tabs">
+      <div v-for="p in profils" :key="p.libelle" class="tab" :class="{ active: p.libelle === onglet }"
+           @click="onglet = p.libelle">{{ p.libelle }}</div>
+    </div>
+    <div v-for="p in profils.filter(x => x.libelle === onglet)" :key="p.libelle">
+      <table class="data">
+        <thead><tr>
+          <th>CRITERE</th><th>COEFF.</th><th>NOTE1</th><th>NOTE2</th><th>VALEUR1</th><th>VALEUR2</th>
+          <th>RATE N</th><th>RATE N+1</th><th>COMMENTAIRE N</th><th>COMMENTAIRE N+1</th>
+        </tr></thead>
+        <tbody>
+          <tr v-for="l in p.lignes" :key="l.critere_libelle" :class="{ divergent: l.divergence }">
+            <td>{{ l.critere_libelle }} <span v-if="l.divergence" class="badge-warn">DIVERGENCE</span></td>
+            <td>{{ l.coefficient }}</td>
+            <td>{{ l.note1 ?? '—' }}</td><td>{{ l.note2 ?? '—' }}</td>
+            <td>{{ l.valeur1 ?? '—' }}</td><td>{{ l.valeur2 ?? '—' }}</td>
+            <td>{{ etoiles(l.rate1) }}</td><td>{{ etoiles(l.rate2) }}</td>
+            <td>{{ l.commentaire_n }}</td><td>{{ l.commentaire_n1 }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="totaux">
+        <span>TOTAUX : ΣCOEFF {{ p.p.total_coeff }}</span>
+        <span>ΣVALEUR1 {{ p.p.total_valeur1 ?? '—' }} → {{ p.p.note_globale1 ?? '—' }}/5</span>
+        <span>ΣVALEUR2 {{ p.p.total_valeur2 ?? '—' }} → {{ p.p.note_globale2 ?? '—' }}/5</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.entete { background: #fff; border-radius: 6px; padding: 14px; display: grid; gap: 8px; margin-bottom: 12px; }
+b { color: #0f3b66; font-size: 11px; margin-right: 6px; }
+.totaux { display: flex; gap: 20px; font-weight: 600; background: #fff; padding: 10px; border-radius: 6px; margin-top: 6px; font-size: 13px; }
+.divergent td { background: #fef3c7; }
+</style>
