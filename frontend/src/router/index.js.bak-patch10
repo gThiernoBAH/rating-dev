@@ -24,7 +24,6 @@ router.beforeEach((to) => {
   if (to.name !== 'login' && !auth.isConnected) return { name: 'login' }
   if (to.name === 'benchmark' && !auth.isAdmin) return { name: 'espace' }   // PATCH 10
   if (to.name === 'benchmark' && !auth.isAdmin) return { name: 'espace' }   // PATCH 10
-  if (to.name === 'benchmark' && !auth.isAdmin) return { name: 'espace' }   // PATCH 10
   if (to.name === 'referentiel' || to.name === 'campagnes' || to.name === 'dashboard') {
     if (!auth.isAdmin) return { name: 'espace' }
     // PATCH 8 — mobile : écrans Admin trop grands, réservés au desktop

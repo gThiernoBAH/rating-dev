@@ -49,9 +49,3 @@ app.include_router(objectifs.router)      # PATCH 10 : objectifs OKR
 app.include_router(relances.router)       # PATCH 10 : relances retardataires
 app.include_router(exports.router)        # PATCH 10 : exports Excel/PDF
 app.include_router(bench.router)         # PATCH 10 : benchmark anonymisé
-app.include_router(signatures.router)     # PATCH 10 : signatures N/N+1/N+2
-app.include_router(checkins.router)       # PATCH 10 : check-ins trimestriels
-app.include_router(objectifs.router)      # PATCH 10 : objectifs OKR
-app.include_router(relances.router)       # PATCH 10 : relances retardataires
-app.include_router(exports.router)        # PATCH 10 : exports Excel/PDF
-app.include_router(bench.router)         # PATCH 10 : benchmark anonymisé

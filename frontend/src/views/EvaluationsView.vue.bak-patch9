@@ -1,0 +1,207 @@
+<!-- 2026-10-03 PATCH6 — M3 : filtre par section FIABLE (v-model + @change,
+     « Sans section » géré), masqué si l'utilisateur n'a pas de collaborateurs,
+     compteur de fiches affichées. DataTable sur N+1/N+2/ADMIN. Modale de
+     blocage si séquencement non respecté. -->
+<script setup>
+import { onMounted, ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { AlertTriangle } from 'lucide-vue-next'
+import api from '../api/client'
+import DataTable from '../components/DataTable.vue'
+
+const route = useRoute()
+const router = useRouter()
+const fiches = ref([])
+const erreur = ref('')
+const filtreSection = ref('')
+const blocage = ref(null)
+const estMobile = window.matchMedia('(max-width: 768px)').matches
+
+onMounted(async () => {
+  try { fiches.value = (await api.get('/evaluations', { params: { campagne_id: route.params.campagneId } })).data }
+  catch (e) { erreur.value = e.response?.data?.detail || 'Erreur de chargement.' }
+})
+
+const SANS = '— Sans section —'
+const sectionDe = (f) => f.section || SANS
+
+/* Filtre affiché seulement si l'utilisateur a plus d'une fiche (donc des
+   collaborateurs) OU plusieurs sections distinctes. */
+const sectionsDispo = computed(() =>
+  [...new Set(fiches.value.map(sectionDe))].sort((a, b) => a.localeCompare(b, 'fr')))
+const afficherFiltre = computed(() => fiches.value.length > 1 || sectionsDispo.value.length > 1)
+
+const fichesFiltrees = computed(() => {
+  if (!filtreSection.value) return fiches.value
+  return fiches.value.filter(f => sectionDe(f) === filtreSection.value)
+})
+
+const sections = computed(() => {
+  const sec = { N: [], 'N+1': [], 'N+2': [], ADMIN: [] }
+  fichesFiltrees.value.forEach(f => sec[f.role]?.push(f))
+  return [
+    { code: 'N', titre: 'AUTO-EVALUATIONS (N)', liste: sec.N, dataTable: false },
+    { code: 'N+1', titre: 'EVALUATIONS (N+1)', liste: sec['N+1'], dataTable: true },
+    { code: 'N+2', titre: 'APPROBATIONS (N+2)', liste: sec['N+2'], dataTable: true },
+    { code: 'ADMIN', titre: 'TOUTES LES FICHES (ADMIN)', liste: sec.ADMIN, dataTable: true },
+  ].filter(s => s.liste.length)
+})
+
+const COLONNES = [
+  { key: 'numero', label: 'N°' },
+  { key: 'sectionAff', label: 'Section' },
+  { key: 'matricule', label: 'Matricule' },
+  { key: 'salaries', label: 'Salarié' },
+  { key: 'date_evaluation', label: 'Date éval.' },
+  { key: 'statut_n', label: 'Statut N' },
+  { key: 'statut_n1', label: 'Statut N+1' },
+  { key: 'statut_n2', label: 'Statut N+2' },
+  { key: 'statut_global', label: 'Global' },
+]
+/* lignes enrichies : sectionAff jamais vide (recherche/filtre fiables) */
+const lignesSection = (liste) => liste.map(f => ({ ...f, sectionAff: sectionDe(f) }))
+
+function surFiltre(e) { filtreSection.value = e.target.value }
+
+function ouvrir(f) {
+  if (f.role === 'N+1' && f.statut_n !== 'Clôturée') {
+    blocage.value = {
+      titre: 'Auto-évaluation en cours',
+      message: `L'auto-évaluation de ${f.salaries} (${f.matricule}) n'est pas encore clôturée. ` +
+        `Vous ne pouvez pas encore saisir votre évaluation N+1 pour ce collaborateur.`,
+    }
+    return
+  }
+  if (f.role === 'N+2' && f.statut_n1 !== 'Clôturée') {
+    blocage.value = {
+      titre: 'Évaluation N+1 en cours',
+      message: `L'évaluation N+1 de ${f.salaries} (${f.matricule}) n'est pas encore clôturée ` +
+        `par son responsable. Vous ne pouvez pas encore approuver cette fiche.`,
+    }
+    return
+  }
+  router.push('/fiche/' + f.id)
+}
+</script>
+
+<template>
+  <div>
+    <div v-if="erreur" class="error">{{ erreur }}</div>
+
+    <div v-if="afficherFiltre" class="barre-filtre">
+      <label class="muted">FILTRER PAR SECTION ({{ sectionsDispo.length }} section(s) de votre périmètre)</label>
+      <select :value="filtreSection" @change="surFiltre"
+        title="Afficher uniquement les fiches d'une section">
+        <option value="">— Toutes les sections ({{ sectionsDispo.length }}) —</option>
+        <option v-for="s in sectionsDispo" :key="s" :value="s">{{ s }}</option>
+      </select>
+      <span v-if="filtreSection" class="muted">{{ fichesFiltrees.length }} fiche(s) affichée(s)</span>
+    </div>
+
+    <section v-for="s in sections" :key="s.code" style="margin-bottom:24px">
+      <h3>{{ s.titre }} <span class="muted">({{ s.liste.length }})</span></h3>
+
+      <DataTable v-if="s.dataTable && !estMobile" :columns="COLONNES" :rows="lignesSection(s.liste)" :row-key="'id'"
+        search-placeholder="Rechercher un matricule, un salarié, une section…">
+        <template #cell-statut_n="{ row }">
+          <span :class="['statut-chip', row.statut_n === 'Clôturée' ? 'chip-cloture' : 'chip-encours']">{{ row.statut_n }}</span>
+        </template>
+        <template #cell-statut_n1="{ row }">
+          <span :class="['statut-chip', row.statut_n1 === 'Clôturée' ? 'chip-cloture' : 'chip-encours']">{{ row.statut_n1 }}</span>
+        </template>
+        <template #cell-actions="{ row }">
+          <button class="icon-btn" :title="'Ouvrir la fiche de ' + row.salaries" @click="ouvrir(row)">→</button>
+        </template>
+      </DataTable>
+
+      <!-- PATCH 8 — mobile : cartes compactes au lieu du tableau -->
+      <div v-if="s.dataTable && estMobile" class="cartes-fiches">
+        <div v-for="f in lignesSection(s.liste)" :key="f.id" class="carte-fiche"
+          :title="'Ouvrir la fiche de ' + f.salaries" @click="ouvrir(f)">
+          <div class="cf-tete"><b>{{ f.matricule }}</b> — {{ f.salaries }}</div>
+          <div class="cf-sub muted">{{ sectionDe(f) }} · N° {{ f.numero }}</div>
+          <div class="cf-chips">
+            <span class="statut-chip" :class="f.statut_n === 'Clôturée' ? 'chip-cloture' : 'chip-encours'">N {{ f.statut_n }}</span>
+            <span class="statut-chip" :class="f.statut_n1 === 'Clôturée' ? 'chip-cloture' : 'chip-encours'">N+1 {{ f.statut_n1 }}</span>
+            <span class="statut-chip chip-global">{{ f.statut_global }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="estMobile" class="cartes-fiches">
+        <div v-for="f in lignesSection(s.liste)" :key="f.id" class="carte-fiche"
+          :title="'Ouvrir la fiche de ' + f.salaries" @click="ouvrir(f)">
+          <div class="cf-tete"><b>{{ f.matricule }}</b> — {{ f.salaries }}</div>
+          <div class="cf-sub muted">{{ sectionDe(f) }} · N° {{ f.numero }}</div>
+          <div class="cf-chips">
+            <span class="statut-chip" :class="f.statut_n === 'Clôturée' ? 'chip-cloture' : 'chip-encours'">N {{ f.statut_n }}</span>
+            <span class="statut-chip" :class="f.statut_n1 === 'Clôturée' ? 'chip-cloture' : 'chip-encours'">N+1 {{ f.statut_n1 }}</span>
+            <span class="statut-chip chip-global">{{ f.statut_global }}</span>
+          </div>
+        </div>
+      </div>
+      <table v-else-if="!estMobile" class="data table-scroll" style="cursor:pointer" @click="ouvrir(s.liste[0])">
+        <thead><tr>
+          <th>N°</th><th>SECTION</th><th>MATRICULE</th><th>SALARIE</th>
+          <th>DATE EVAL.</th><th>STATUT N</th><th>STATUT N+1</th><th>GLOBAL</th>
+        </tr></thead>
+        <tbody><tr>
+          <td>{{ s.liste[0].numero }}</td><td>{{ sectionDe(s.liste[0]) }}</td>
+          <td>{{ s.liste[0].matricule }}</td><td>{{ s.liste[0].salaries }}</td>
+          <td>{{ s.liste[0].date_evaluation }}</td>
+          <td>{{ s.liste[0].statut_n }}</td><td>{{ s.liste[0].statut_n1 }}</td>
+          <td>{{ s.liste[0].statut_global }}</td>
+        </tr></tbody>
+      </table>
+    </section>
+    <p v-if="!sections.length" class="muted">Aucune fiche à afficher pour cette campagne.</p>
+
+    <div v-if="blocage" class="modal-bg" @click.self="blocage = null">
+      <div class="modal" style="max-width:480px">
+        <div class="blocage-tete">
+          <AlertTriangle :size="22" class="blocage-icone" />
+          <h3>{{ blocage.titre }}</h3>
+        </div>
+        <p class="blocage-message">{{ blocage.message }}</p>
+        <div style="display:flex;justify-content:flex-end">
+          <button class="btn" title="Fermer cette fenêtre" @click="blocage = null">COMPRENDRE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+h3 { font-size: 13px; color: var(--color-brand-dark); margin: var(--space-3) 0 var(--space-2); }
+.barre-filtre { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.barre-filtre select { width: 320px; }
+.statut-chip { border-radius: 12px; padding: 2px 10px; font-size: 11px; font-weight: 700; }
+.chip-encours { color: var(--color-orange); background: var(--color-orange-bg); }
+.chip-cloture { color: var(--color-text-muted); background: var(--color-arret-bg); }
+.blocage-tete { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.blocage-tete h3 { margin: 0; color: var(--color-orange); }
+.blocage-icone { color: var(--color-orange); flex-shrink: 0; }
+.blocage-message { color: var(--color-text); font-size: var(--font-size-sm); line-height: 1.6; margin: 0 0 var(--space-4); }
+
+/* ---------- PATCH 8 — mobile : cartes fiches ---------- */
+.cartes-fiches { display: flex; flex-direction: column; gap: 8px; }
+.carte-fiche {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 10px 12px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px; min-height: 44px;
+}
+.carte-fiche:active { background: var(--color-brand-light); }
+.cf-tete { font-size: 14px; }
+.cf-sub { font-size: 11.5px; }
+.cf-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.chip-global { color: var(--color-brand-dark); background: var(--color-brand-light); }
+@media (max-width: 768px) {
+  .barre-filtre { flex-wrap: wrap; }
+  .barre-filtre select { width: 100%; }
+}
+
+/* ---------- PATCH 8c ---------- */
+@media (max-width: 768px) {
+  .barre-filtre select { width: 100%; max-width: 100%; }
+}
+</style>
