@@ -89,10 +89,10 @@ function ouvrir(f) {
     <div v-if="erreur" class="error">{{ erreur }}</div>
 
     <div v-if="afficherFiltre" class="barre-filtre">
-      <label class="muted">FILTRER PAR SECTION ({{ sectionsDispo.length }} section(s) de votre périmètre)</label>
+      <label class="muted">FILTRER PAR SECTION</label>
       <select :value="filtreSection" @change="surFiltre"
         title="Afficher uniquement les fiches d'une section">
-        <option value="">— Toutes les sections ({{ sectionsDispo.length }}) —</option>
+        <option value="">— Toutes les sections ({{ fiches.length }}) —</option>
         <option v-for="s in sectionsDispo" :key="s" :value="s">{{ s }}</option>
       </select>
       <span v-if="filtreSection" class="muted">{{ fichesFiltrees.length }} fiche(s) affichée(s)</span>
@@ -128,19 +128,7 @@ function ouvrir(f) {
         </div>
       </div>
 
-      <div v-if="estMobile" class="cartes-fiches">
-        <div v-for="f in lignesSection(s.liste)" :key="f.id" class="carte-fiche"
-          :title="'Ouvrir la fiche de ' + f.salaries" @click="ouvrir(f)">
-          <div class="cf-tete"><b>{{ f.matricule }}</b> — {{ f.salaries }}</div>
-          <div class="cf-sub muted">{{ sectionDe(f) }} · N° {{ f.numero }}</div>
-          <div class="cf-chips">
-            <span class="statut-chip" :class="f.statut_n === 'Clôturée' ? 'chip-cloture' : 'chip-encours'">N {{ f.statut_n }}</span>
-            <span class="statut-chip" :class="f.statut_n1 === 'Clôturée' ? 'chip-cloture' : 'chip-encours'">N+1 {{ f.statut_n1 }}</span>
-            <span class="statut-chip chip-global">{{ f.statut_global }}</span>
-          </div>
-        </div>
-      </div>
-      <table v-else-if="!estMobile" class="data table-scroll" style="cursor:pointer" @click="ouvrir(s.liste[0])">
+      <table v-else class="data" style="cursor:pointer" @click="ouvrir(s.liste[0])">
         <thead><tr>
           <th>N°</th><th>SECTION</th><th>MATRICULE</th><th>SALARIE</th>
           <th>DATE EVAL.</th><th>STATUT N</th><th>STATUT N+1</th><th>GLOBAL</th>
@@ -198,10 +186,5 @@ h3 { font-size: 13px; color: var(--color-brand-dark); margin: var(--space-3) 0 v
 @media (max-width: 768px) {
   .barre-filtre { flex-wrap: wrap; }
   .barre-filtre select { width: 100%; }
-}
-
-/* ---------- PATCH 8c ---------- */
-@media (max-width: 768px) {
-  .barre-filtre select { width: 100%; max-width: 100%; }
 }
 </style>
