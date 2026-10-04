@@ -188,6 +188,17 @@ def saisir_qcm(evaluation_id: int, p: QcmIn, db: Session = Depends(get_db),
     if not detail or detail.critere_id != p.critere_id:
         raise HTTPException(422, "Détail de critère invalide pour ce critère.")
 
+    if p.etape == "N+1":
+        ligne_n = db.query(EvaluationLigne).filter(
+            EvaluationLigne.evaluation_id == evaluation_id,
+            EvaluationLigne.profil_id == p.profil_id,
+            EvaluationLigne.critere_id == p.critere_id,
+            EvaluationLigne.etape == "N",
+        ).first()
+        if ligne_n and ligne_n.commentaire and \
+           ligne_n.commentaire.strip().lower() == p.commentaire.strip().lower():
+            raise HTTPException(422, "Rejeté : votre commentaire est identique à celui du salarié (copier-coller interdit). Reformulez votre appréciation.")
+
     ligne = db.query(EvaluationLigne).filter(
         EvaluationLigne.evaluation_id == evaluation_id,
         EvaluationLigne.profil_id == p.profil_id,

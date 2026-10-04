@@ -17,15 +17,17 @@ router = APIRouter(prefix="/api/espace", tags=["Mon espace"])
 def mon_espace(db: Session = Depends(get_db),
                user: Salarie = Depends(get_current_user)):
     n1 = db.query(Salarie).get(user.n1_id) if user.n1_id else None
-    campagnes = db.query(Campagne).filter(
-        Campagne.statut == "Ouverte").order_by(Campagne.exercice.desc()).all()
+    # 2026-10-03 : TOUTES les campagnes (Ouvertes + Clôturées) — consultation
+    # libre, les Clôturées restent en lecture seule (blocage saisie côté API).
+    campagnes = db.query(Campagne).order_by(Campagne.exercice.desc()).all()
     return {
         "matricule": user.matricule,
         "nom": user.full_name,
         "email": user.email,
         "n1": n1.full_name if n1 else None,
-        "campagnes_actives": [{"id": c.id, "nom": c.nom, "exercice": c.exercice}
-                              for c in campagnes],
+        "campagnes_actives": [{"id": c.id, "nom": c.nom, "exercice": c.exercice,
+                                "statut": c.statut}
+                               for c in campagnes],
         "roles": {
             "admin": user.is_admin,
             "n1": a_des_collaborateurs_directs(db, user.id),

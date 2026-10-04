@@ -22,3 +22,11 @@ class MeResponse(BaseModel):
     # rôles relationnels (§5) : rempli par le service selon la hiérarchie
     est_n1: bool = False    # a au moins un collaborateur direct
     est_n2: bool = False    # a au moins un collaborateur indirect
+
+
+class DefinirMdpIn(BaseModel):
+    nouveau: str
+
+
+class MessageResponse(BaseModel):
+    detail: str

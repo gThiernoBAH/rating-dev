@@ -1,9 +1,14 @@
-<!-- 2026-10-02 PATCH2 — M5 : onglets + CRUD complet (ajouter/modifier/supprimer)
-     sur les 9 tables du referentiel. Admin seul. -->
+<!-- 2026-10-03 PATCH UX2 — M5 : DataTable (recherche/tri/pagination) sur les
+     9 onglets, colonne Actions en icônes avec hints, suppression via vraie
+     modale (plus de window.confirm), onglets soulignés façon vusine. -->
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
+import { Pencil, Trash2, Plus, UserCheck, UserX } from 'lucide-vue-next'
 import api from '../api/client'
+import DataTable from '../components/DataTable.vue'
+import { useConfirm } from '../composables/useConfirm'
 
+const { confirm } = useConfirm()
 const onglet = ref('salaries')
 const donnees = ref({})
 const message = ref('')
@@ -13,6 +18,11 @@ const modeEdition = ref(false)
 
 const ONGLETS = ['salaries', 'emplois', 'profils', 'criteres', 'sites',
                  'departements', 'sections', 'categories', 'postes']
+const LIBELLES = {
+  salaries: 'Salariés', emplois: 'Emplois', profils: 'Profils', criteres: 'Critères',
+  sites: 'Sites', departements: 'Départements', sections: 'Sections',
+  categories: 'Catégories', postes: 'Postes',
+}
 
 async function charger() {
   const cles = ['sites', 'departements', 'sections', 'emplois', 'categories',
@@ -26,7 +36,6 @@ async function charger() {
 onMounted(charger)
 
 function nomCourt(s) { return s ? s.nom + (s.prenoms ? ' ' + s.prenoms : '') : '' }
-
 function fermer() { forme.value = null; erreur.value = ''; }
 
 function ajouter(t) {
@@ -105,13 +114,35 @@ async function enregistrer() {
 }
 
 async function supprimer(t, item) {
-  if (!window.confirm('Supprimer ' + (item.code || item.matricule || item.id) + ' ?')) return
+  const nom = item.code || item.matricule || item.id
+  const ok = await confirm({
+    title: 'Supprimer — ' + LIBELLES[t],
+    message: `Supprimer « ${nom} » ? Cette action est définitive.`,
+    danger: true, confirmLabel: 'Supprimer',
+  })
+  if (!ok) return
   erreur.value = ''
   try {
     await api.delete('/referentiel/' + t + '/' + item.id)
     message.value = 'Supprimé.'
     await charger()
   } catch (e) { erreur.value = (e.response && e.response.data && e.response.data.detail) || 'Suppression impossible.' }
+}
+
+async function basculerActif(s) {
+  const actuel = s.is_active ? 'actif' : 'inactif'
+  const futur = s.is_active ? 'DÉSACTIVER (le compte ne pourra plus se connecter)' : 'ACTIVER'
+  const ok = await confirm({
+    title: 'Compte ' + actuel,
+    message: `Le compte de ${s.matricule} — ${nomCourt(s)} est ${actuel}. ${futif} ce compte ?`,
+    danger: s.is_active, confirmLabel: s.is_active ? 'Désactiver' : 'Activer',
+  })
+  if (!ok) return
+  try {
+    await api.patch('/referentiel/salaries/' + s.id + '/toggle-active')
+    message.value = 'Compte ' + (s.is_active ? 'désactivé' : 'activé') + '.'
+    await charger()
+  } catch (e) { erreur.value = e.response?.data?.detail || 'Action impossible.' }
 }
 
 function ajouterDetail() { forme.value.details.push({ libelle_descriptif: '', valeur: 1, ordre: 0 }) }
@@ -127,75 +158,129 @@ function libelleCritere(id) {
   const c = (donnees.value.criteres || []).find(function (x) { return x.id === id })
   return c ? c.libelle : id
 }
+function libelleDepartement(id) {
+  const d = (donnees.value.departements || []).find(function (x) { return x.id === id })
+  return d ? d.libelle : id
+}
+
+/* --- Colonnes du DataTable par onglet --- */
+const FAMILLES = { 1: 'Cadres', 2: 'Agents de maîtrise', 3: 'Employés-Ouvriers' }
+const ACTIONS = { key: 'actions', label: 'Actions', sortable: false, searchable: false, align: 'center' }
+
+const colonnes = computed(() => {
+  const t = onglet.value
+  if (t === 'salaries') return [
+    { key: 'matricule', label: 'Matricule' },
+    { key: 'nom', label: 'Nom', format: (v, r) => nomCourt(r) },
+    { key: 'email', label: 'Email' },
+    { key: 'n1_nom', label: 'N+1' },
+    { key: 'hors_evaluation', label: 'Hors éval.', format: v => (v ? 'Oui' : 'Non'), align: 'center' },
+    { key: 'actif_aff', label: 'Actif', format: v => v, align: 'center', searchable: false },
+    ACTIONS,
+  ]
+  if (t === 'emplois') return [
+    { key: 'code', label: 'Code' },
+    { key: 'libelle', label: 'Libellé' },
+    { key: 'famille', label: 'Famille', format: v => FAMILLES[v] || v },
+    { key: 'profils_liste', label: 'Profils', keyFn: r => r },
+    ACTIONS,
+  ]
+  if (t === 'profils') return [
+    { key: 'code', label: 'Code' },
+    { key: 'libelle', label: 'Libellé' },
+    { key: 'criteres_liste', label: 'Critères × coeff.' },
+    ACTIONS,
+  ]
+  if (t === 'criteres') return [
+    { key: 'code', label: 'Code' },
+    { key: 'libelle', label: 'Critère' },
+    { key: 'details_liste', label: 'Détails (libellé → valeur)' },
+    ACTIONS,
+  ]
+  if (t === 'departements') return [
+    { key: 'code', label: 'Code' },
+    { key: 'libelle', label: 'Libellé' },
+    { key: 'site_code', label: 'Site' },
+    ACTIONS,
+  ]
+  if (t === 'sections') return [
+    { key: 'code', label: 'Code' },
+    { key: 'libelle', label: 'Libellé' },
+    { key: 'dept_libelle', label: 'Département' },
+    ACTIONS,
+  ]
+  return [
+    { key: 'code', label: 'Code' },
+    { key: 'libelle', label: 'Libellé' },
+    ACTIONS,
+  ]
+})
+
+/* lignes enrichies pour le DataTable */
+const lignes = computed(() => {
+  const t = onglet.value
+  const base = donnees.value[t] || []
+  if (t === 'salaries') return base.map(s => ({
+    ...s, actif_aff: s.is_active ? 'Actif' : 'Inactif',
+  }))
+  if (t === 'emplois') return base.map(e => ({
+    ...e,
+    profils_liste: (e.profils || []).map(p => p.libelle).join(' · '),
+  }))
+  if (t === 'profils') return base.map(p => ({
+    ...p,
+    criteres_liste: (p.criteres || []).map(c => libelleCritere(c.critere_id) + ' ×' + c.coefficient).join(' · '),
+  }))
+  if (t === 'criteres') return base.map(c => ({ ...c, details_liste: ' ' }))
+  if (t === 'departements') return base.map(d => ({
+    ...d,
+    site_code: (donnees.value.sites || []).find(s => s.id === d.site_id)?.code || '—',
+  }))
+  if (t === 'sections') return base.map(s => ({
+    ...s,
+    dept_libelle: libelleDepartement(s.departement_id),
+  }))
+  return base
+})
+
+function cleLigne(r, i) { return r.id ?? i }
 </script>
 
 <template>
   <div>
     <div class="tabs">
-      <div v-for="t in ONGLETS" :key="t" class="tab" :class="{ active: onglet === t }"
-           @click="onglet = t">{{ t.toUpperCase() }}</div>
+      <button v-for="t in ONGLETS" :key="t" class="tab" :class="{ active: onglet === t }"
+        :title="'Onglet ' + LIBELLES[t]" @click="onglet = t">{{ LIBELLES[t] }}</button>
     </div>
     <div v-if="message" class="ok">{{ message }}</div>
     <div v-if="erreur && !forme" class="error">{{ erreur }}</div>
 
-    <div class="barre-outils">
-      <span class="muted">{{ (donnees[onglet] || []).length }} enregistrement(s)</span>
-      <button class="btn" @click="ajouter(onglet)">+ AJOUTER</button>
-    </div>
+    <DataTable :columns="colonnes" :rows="lignes" :row-key="cleLigne"
+      :search-placeholder="`Rechercher un ${LIBELLES[onglet].toLowerCase().replace(/s$/, '')}…`">
+      <template #filtres>
+        <button class="btn" title="Ajouter un nouvel enregistrement dans cet onglet"
+          @click="ajouter(onglet)"><Plus :size="14" /> AJOUTER</button>
+      </template>
 
-    <table v-if="onglet === 'salaries'" class="data">
-      <thead><tr><th>MATRICULE</th><th>NOM</th><th>EMAIL</th><th>N+1</th><th>HORS EVAL</th><th>ACTIONS</th></tr></thead>
-      <tbody><tr v-for="s in donnees.salaries" :key="s.id">
-        <td>{{ s.matricule }}</td><td>{{ s.nom }} {{ s.prenoms }}</td><td>{{ s.email }}</td>
-        <td>{{ s.n1_nom || '—' }}</td><td>{{ s.hors_evaluation ? 'Oui' : 'Non' }}</td>
-        <td><button class="btn ghost small" @click="modifier('salaries', s)">Modifier</button>
-            <button class="btn danger small" @click="supprimer('salaries', s)">Suppr.</button></td>
-      </tr></tbody>
-    </table>
-
-    <table v-if="onglet === 'emplois'" class="data">
-      <thead><tr><th>CODE</th><th>LIBELLE</th><th>FAMILLE</th><th>PROFILS</th><th>ACTIONS</th></tr></thead>
-      <tbody><tr v-for="e in donnees.emplois" :key="e.id">
-        <td>{{ e.code }}</td><td>{{ e.libelle }}</td>
-        <td>{{ e.famille === 1 ? 'Cadres' : e.famille === 2 ? 'Agents de maîtrise' : 'Employés-Ouvriers' }}</td>
-        <td>{{ (e.profils || []).map(p => p.libelle).join(' · ') }}</td>
-        <td><button class="btn ghost small" @click="modifier('emplois', e)">Modifier</button>
-            <button class="btn danger small" @click="supprimer('emplois', e)">Suppr.</button></td>
-      </tr></tbody>
-    </table>
-
-    <table v-if="onglet === 'profils'" class="data">
-      <thead><tr><th>CODE</th><th>LIBELLE</th><th>CRITERES x COEFF.</th><th>ACTIONS</th></tr></thead>
-      <tbody><tr v-for="p in donnees.profils" :key="p.id">
-        <td>{{ p.code }}</td><td>{{ p.libelle }}</td>
-        <td>{{ (p.criteres || []).map(c => libelleCritere(c.critere_id) + ' x' + c.coefficient).join(' · ') }}</td>
-        <td><button class="btn ghost small" @click="modifier('profils', p)">Modifier</button>
-            <button class="btn danger small" @click="supprimer('profils', p)">Suppr.</button></td>
-      </tr></tbody>
-    </table>
-
-    <table v-if="onglet === 'criteres'" class="data">
-      <thead><tr><th>CODE</th><th>CRITERE</th><th>DETAILS (libellé → valeur)</th><th>ACTIONS</th></tr></thead>
-      <tbody><tr v-for="c in donnees.criteres" :key="c.id">
-        <td>{{ c.code }}</td><td>{{ c.libelle }}</td>
-        <td><div v-for="d in c.details" :key="d.id">{{ d.libelle_descriptif }} → {{ d.valeur }}</div></td>
-        <td><button class="btn ghost small" @click="modifier('criteres', c)">Modifier</button>
-            <button class="btn danger small" @click="supprimer('criteres', c)">Suppr.</button></td>
-      </tr></tbody>
-    </table>
-
-    <template v-for="t in ['sites', 'departements', 'sections', 'categories', 'postes']" :key="t">
-      <table v-if="onglet === t" class="data">
-        <thead><tr><th>CODE</th><th>LIBELLE</th><th v-if="t === 'departements'">SITE</th><th v-if="t === 'sections'">DEPT</th><th>ACTIONS</th></tr></thead>
-        <tbody><tr v-for="r in donnees[t]" :key="r.id">
-          <td>{{ r.code }}</td><td>{{ r.libelle }}</td>
-          <td v-if="t === 'departements'">{{ (donnees.sites || []).find(s => s.id === r.site_id)?.code || '—' }}</td>
-          <td v-if="t === 'sections'">{{ r.departement_id }}</td>
-          <td><button class="btn ghost small" @click="modifier(t, r)">Modifier</button>
-              <button class="btn danger small" @click="supprimer(t, r)">Suppr.</button></td>
-        </tr></tbody>
-      </table>
-    </template>
+      <!-- colonnes spéciales -->
+      <template #cell-details_liste="{ row }">
+        <div v-for="d in row.details" :key="d.id">{{ d.libelle_descriptif }} → {{ d.valeur }}</div>
+      </template>
+      <template #cell-actions="{ row }">
+        <button v-if="onglet === 'salaries'" class="icon-btn"
+          :class="{ danger: row.is_active }"
+          :title="row.is_active
+            ? 'Désactiver le compte de ' + row.matricule + ' (il ne pourra plus se connecter)'
+            : 'Activer le compte de ' + row.matricule"
+          @click="basculerActif(row)"><component :is="row.is_active ? UserX : UserCheck" :size="15" /></button>
+        <button class="icon-btn" style="margin-left:6px"
+          :title="'Modifier — ' + (row.code || row.matricule || row.id)"
+          @click="modifier(onglet, row)"><Pencil :size="15" /></button>
+        <button class="icon-btn danger" style="margin-left:6px"
+          :title="'Supprimer — ' + (row.code || row.matricule || row.id)"
+          @click="supprimer(onglet, row)"><Trash2 :size="15" /></button>
+      </template>
+    </DataTable>
 
     <div v-if="forme" class="modal-bg" @click.self="fermer">
       <div class="modal">
@@ -203,114 +288,117 @@ function libelleCritere(id) {
         <div v-if="erreur" class="error">{{ erreur }}</div>
 
         <template v-if="['sites', 'categories', 'postes'].includes(forme.t)">
-          <div class="field"><label>CODE</label><input v-model="forme.code" /></div>
-          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" /></div>
+          <div class="field"><label>CODE</label><input v-model="forme.code" title="Code unique (ex. DUPL)" /></div>
+          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" title="Libellé complet" /></div>
         </template>
 
         <template v-if="forme.t === 'departements'">
-          <div class="field"><label>CODE</label><input v-model="forme.code" /></div>
-          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" /></div>
+          <div class="field"><label>CODE</label><input v-model="forme.code" title="Code unique du département" /></div>
+          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" title="Libellé complet" /></div>
           <div class="field"><label>SITE</label>
-            <select v-model="forme.site_id"><option :value="null">—</option>
+            <select v-model="forme.site_id" title="Site de rattachement du département">
+              <option :value="null">—</option>
               <option v-for="s in donnees.sites" :key="s.id" :value="s.id">{{ s.code }} — {{ s.libelle }}</option></select></div>
         </template>
 
         <template v-if="forme.t === 'sections'">
-          <div class="field"><label>CODE</label><input v-model="forme.code" /></div>
-          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" /></div>
+          <div class="field"><label>CODE</label><input v-model="forme.code" title="Code unique de la section" /></div>
+          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" title="Libellé complet" /></div>
           <div class="field"><label>DEPARTEMENT</label>
-            <select v-model="forme.departement_id">
+            <select v-model="forme.departement_id" title="Département de rattachement de la section">
               <option v-for="d in donnees.departements" :key="d.id" :value="d.id">{{ d.code }} — {{ d.libelle }}</option></select></div>
         </template>
 
         <template v-if="forme.t === 'emplois'">
-          <div class="field"><label>CODE</label><input v-model="forme.code" /></div>
-          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" /></div>
+          <div class="field"><label>CODE</label><input v-model="forme.code" title="Code emploi (CD, CM, CS, AM, EN, EQ, ON, OQ…)" /></div>
+          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" title="Libellé complet de l'emploi" /></div>
           <div class="field"><label>FAMILLE</label>
-            <select v-model="forme.famille">
+            <select v-model="forme.famille" title="Famille d'emploi : détermine la grille de génération des fiches">
               <option :value="1">1 — Cadres</option><option :value="2">2 — Agents de maîtrise</option>
               <option :value="3">3 — Employés-Ouvriers</option></select></div>
           <div class="field"><label>PROFILS ATTRIBUÉS (cocher + ordonner)</label>
             <div v-for="p in donnees.profils" :key="p.id" class="ligne-edit" style="padding-left:2px">
-              <input type="checkbox" style="width:auto"
+              <input type="checkbox" style="width:auto" title="Attribuer ce profil à l'emploi"
                 :checked="forme.profils.includes(p.id)"
                 @change="forme.profils.includes(p.id) ? forme.profils.splice(forme.profils.indexOf(p.id), 1) : forme.profils.push(p.id)" />
               <span>{{ p.code }} — {{ p.libelle }}</span>
               <button v-if="forme.profils.includes(p.id)" class="btn ghost small" type="button"
+                title="Monter ce profil d'un cran (ordre des onglets de la fiche)"
                 @click="monter(forme.profils, forme.profils.indexOf(p.id))">↑</button>
               <button v-if="forme.profils.includes(p.id)" class="btn ghost small" type="button"
+                title="Descendre ce profil d'un cran"
                 @click="descendre(forme.profils, forme.profils.indexOf(p.id))">↓</button>
             </div></div>
         </template>
 
         <template v-if="forme.t === 'criteres'">
-          <div class="field"><label>CODE</label><input v-model="forme.code" /></div>
-          <div class="field"><label>CRITERE</label><input v-model="forme.libelle" /></div>
-          <div class="field"><label>ACTIF</label><input type="checkbox" v-model="forme.actif" style="width:auto" /></div>
+          <div class="field"><label>CODE</label><input v-model="forme.code" title="Code unique du critère" /></div>
+          <div class="field"><label>CRITERE</label><input v-model="forme.libelle" title="Libellé du critère affiché dans la grille" /></div>
+          <div class="field"><label>ACTIF</label><input type="checkbox" v-model="forme.actif" style="width:auto" title="Critère actif (utilisable dans les profils)" /></div>
           <label>DETAILS (libellé affiché dans le QCM + valeur cachée /5)</label>
           <div class="lignes-edit">
             <div v-for="(d, i) in forme.details" :key="i" class="ligne-edit">
-              <input v-model="d.libelle_descriptif" placeholder="Libellé du détail" />
-              <input v-model.number="d.valeur" type="number" step="0.5" style="width:80px" />
-              <button class="btn ghost small" type="button" @click="monter(forme.details, i)">↑</button>
-              <button class="btn ghost small" type="button" @click="descendre(forme.details, i)">↓</button>
-              <button class="btn danger small" type="button" @click="forme.details.splice(i, 1)">✕</button>
+              <input v-model="d.libelle_descriptif" placeholder="Libellé du détail" title="Texte proposé à la case dans le QCM" />
+              <input v-model.number="d.valeur" type="number" step="0.5" style="width:80px" title="Valeur cachée du détail (contribute au score /5)" />
+              <button class="btn ghost small" type="button" title="Monter ce détail" @click="monter(forme.details, i)">↑</button>
+              <button class="btn ghost small" type="button" title="Descendre ce détail" @click="descendre(forme.details, i)">↓</button>
+              <button class="btn danger small" type="button" title="Retirer ce détail du critère" @click="forme.details.splice(i, 1)">✕</button>
             </div>
-            <button class="btn ghost small" type="button" @click="ajouterDetail">+ Ajouter un détail</button>
+            <button class="btn ghost small" type="button" title="Ajouter une ligne de détail au QCM" @click="ajouterDetail">+ Ajouter un détail</button>
           </div>
         </template>
 
         <template v-if="forme.t === 'profils'">
-          <div class="field"><label>CODE</label><input v-model="forme.code" /></div>
-          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" /></div>
+          <div class="field"><label>CODE</label><input v-model="forme.code" title="Code unique du profil" /></div>
+          <div class="field"><label>LIBELLE</label><input v-model="forme.libelle" title="Libellé du profil (titre de l'onglet dans la fiche)" /></div>
           <label>CRITERES x COEFFICIENT</label>
           <div class="lignes-edit">
             <div v-for="(c, i) in forme.criteres" :key="i" class="ligne-edit">
-              <select v-model="c.critere_id">
+              <select v-model="c.critere_id" title="Critère évalué dans ce profil">
                 <option v-for="cr in donnees.criteres" :key="cr.id" :value="cr.id">{{ cr.code }} — {{ cr.libelle }}</option></select>
-              <input v-model.number="c.coefficient" type="number" step="0.5" style="width:80px" />
-              <button class="btn ghost small" type="button" @click="monter(forme.criteres, i)">↑</button>
-              <button class="btn ghost small" type="button" @click="descendre(forme.criteres, i)">↓</button>
-              <button class="btn danger small" type="button" @click="forme.criteres.splice(i, 1)">✕</button>
+              <input v-model.number="c.coefficient" type="number" step="0.5" style="width:80px" title="Coefficient de pondération du critère dans le profil" />
+              <button class="btn ghost small" type="button" title="Monter ce critère" @click="monter(forme.criteres, i)">↑</button>
+              <button class="btn ghost small" type="button" title="Descendre ce critère" @click="descendre(forme.criteres, i)">↓</button>
+              <button class="btn danger small" type="button" title="Retirer ce critère du profil" @click="forme.criteres.splice(i, 1)">✕</button>
             </div>
-            <button class="btn ghost small" type="button" @click="ajouterCritereProfil">+ Ajouter un critère</button>
+            <button class="btn ghost small" type="button" title="Ajouter un critère pondéré au profil" @click="ajouterCritereProfil">+ Ajouter un critère</button>
           </div>
         </template>
 
         <template v-if="forme.t === 'salaries'">
-          <div class="field"><label>MATRICULE</label><input v-model="forme.matricule" /></div>
-          <div class="field"><label>NOM</label><input v-model="forme.nom" /></div>
-          <div class="field"><label>PRÉNOMS</label><input v-model="forme.prenoms" /></div>
+          <div class="field"><label>MATRICULE</label><input v-model="forme.matricule" title="Matricule = identifiant de connexion du salarié" /></div>
+          <div class="field"><label>NOM</label><input v-model="forme.nom" title="Nom du salarié" /></div>
+          <div class="field"><label>PRÉNOMS</label><input v-model="forme.prenoms" title="Prénoms du salarié" /></div>
           <div class="field"><label>SITE</label>
-            <select v-model="forme.site_id"><option :value="null">—</option>
+            <select v-model="forme.site_id" title="Site d'affectation"><option :value="null">—</option>
               <option v-for="s in donnees.sites" :key="s.id" :value="s.id">{{ s.code }}</option></select></div>
           <div class="field"><label>DÉPARTEMENT</label>
-            <select v-model="forme.departement_id"><option :value="null">—</option>
+            <select v-model="forme.departement_id" title="Département d'affectation"><option :value="null">—</option>
               <option v-for="d in donnees.departements" :key="d.id" :value="d.id">{{ d.code }}</option></select></div>
           <div class="field"><label>SECTION</label>
-            <select v-model="forme.section_id"><option :value="null">—</option>
+            <select v-model="forme.section_id" title="Section d'affectation"><option :value="null">—</option>
               <option v-for="s in donnees.sections" :key="s.id" :value="s.id">{{ s.code }}</option></select></div>
           <div class="field"><label>EMPLOI</label>
-            <select v-model="forme.emploi_id"><option :value="null">—</option>
+            <select v-model="forme.emploi_id" title="Emploi : détermine les profils d'évaluation de la fiche"><option :value="null">—</option>
               <option v-for="e in donnees.emplois" :key="e.id" :value="e.id">{{ e.code }}</option></select></div>
           <div class="field"><label>CATÉGORIE</label>
-            <select v-model="forme.categorie_id"><option :value="null">—</option>
+            <select v-model="forme.categorie_id" title="Catégorie du salarié"><option :value="null">—</option>
               <option v-for="c in donnees.categories" :key="c.id" :value="c.id">{{ c.code }}</option></select></div>
           <div class="field"><label>POSTE</label>
-            <select v-model="forme.poste_id"><option :value="null">—</option>
+            <select v-model="forme.poste_id" title="Poste occupé"><option :value="null">—</option>
               <option v-for="p in donnees.postes" :key="p.id" :value="p.id">{{ p.code }}</option></select></div>
-          <div class="field"><label>DATE EMBAUCHE</label><input v-model="forme.date_embauche" type="date" /></div>
-          <div class="field"><label>EMAIL</label><input v-model="forme.email" /></div>
+          <div class="field"><label>DATE EMBAUCHE</label><input v-model="forme.date_embauche" type="date" title="Date d'embauche (servira au cutoff d'ancienneté)" /></div>
+          <div class="field"><label>EMAIL</label><input v-model="forme.email" title="Adresse email professionnelle (notifications)" /></div>
           <div class="field"><label>N+1</label>
-            <select v-model="forme.n1_id"><option :value="null">—</option>
+            <select v-model="forme.n1_id" title="Responsable direct (N+1) : évaluera la fiche après l'auto-évaluation"><option :value="null">—</option>
               <option v-for="s in donnees.salaries" :key="s.id" :value="s.id">{{ s.matricule }} — {{ nomCourt(s) }}</option></select></div>
           <div class="field"><label>HORS ÉVALUATION</label>
-            <input type="checkbox" v-model="forme.hors_evaluation" style="width:auto" /></div>
+            <input type="checkbox" v-model="forme.hors_evaluation" style="width:auto" title="Exclure ce salarié de la génération des fiches" /></div>
         </template>
 
         <div style="display:flex; gap:8px; margin-top:14px">
-          <button class="btn" @click="enregistrer">ENREGISTRER</button>
-          <button class="btn ghost" @click="fermer">ANNULER</button>
+          <button class="btn" title="Enregistrer et fermer" @click="enregistrer">ENREGISTRER</button>
+          <button class="btn ghost" title="Annuler sans enregistrer" @click="fermer">ANNULER</button>
         </div>
       </div>
     </div>

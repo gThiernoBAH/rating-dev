@@ -48,7 +48,7 @@ def generer_fiches(db: Session, campagne, familles: list[int], rattrapage: bool 
         if not s.n1_id:
             rap.sans_n1.append(s.matricule)   # signalé, fiche non créée
             continue
-        if cutoff and s.date_embauche and s.date_embauche < cutoff:
+        if cutoff and s.date_embauche and s.date_embauche >= cutoff:
             rap.cutoff_exclus += 1
             continue
         if s.id in deja:

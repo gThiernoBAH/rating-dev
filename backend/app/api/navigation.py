@@ -26,6 +26,14 @@ def _permis(db, user, salarie_id: int) -> bool:
     return salarie_id in (directs | indirects)
 
 
+@router.get("/criteres")
+def criteres_dispo(db: Session = Depends(get_db),
+                   user: Salarie = Depends(get_current_user)):
+    """Critères actifs — pour le menu BENCHMARK (accessible à tout salarié)."""
+    rows = db.query(Critere).filter(Critere.actif.is_(True)).order_by(Critere.code).all()
+    return [{"id": cr.id, "libelle": cr.libelle} for cr in rows]
+
+
 @router.get("/salaries")
 def salaries_selectionnables(db: Session = Depends(get_db),
                              user: Salarie = Depends(get_current_user)):

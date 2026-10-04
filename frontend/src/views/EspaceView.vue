@@ -1,7 +1,10 @@
-<!-- 2026-10-02 — M2 : bandeau contexte + blocs selon le rôle + campagnes actives. -->
+<!-- 2026-10-03 PATCH4 — M2 : bandeau contexte + TOUTES les campagnes
+     (Ouvertes et Clôturées). Statut visible par badge ; les campagnes
+     Clôturées sont consultables en lecture seule. -->
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { CheckCircle2, Lock, FolderOpen } from 'lucide-vue-next'
 import api from '../api/client'
 
 const router = useRouter()
@@ -9,33 +12,62 @@ const espace = ref(null)
 
 onMounted(async () => { espace.value = (await api.get('/espace')).data })
 
-function ouvrir(campagneId) {
-  localStorage.setItem('campagneActive', campagneId)
-  router.push('/evaluations/' + campagneId)
+function ouvrir(campagne) {
+  localStorage.setItem('campagneActive', campagne.id)
+  router.push('/evaluations/' + campagne.id)
 }
 </script>
 
 <template>
-  <div v-if="espace">
+  <div v-if="espace" class="espace">
     <div class="bandeau">
-      <div><b>{{ espace.nom }}</b> — Matricule {{ espace.matricule }}</div>
+      <div class="bandeau-nom"><b>{{ espace.nom }}</b> — Matricule {{ espace.matricule }}</div>
       <div class="muted">Responsable N+1 : {{ espace.n1 || '—' }}</div>
     </div>
-    <h3>CAMPAGNES ACTIVES</h3>
-    <p v-if="!espace.campagnes_actives.length" class="muted">Aucune campagne ouverte.</p>
-    <div v-for="c in espace.campagnes_actives" :key="c.id" class="bloc">
-      <b>{{ c.nom }}</b> (exercice {{ c.exercice }})
-      <button class="btn" @click="ouvrir(c.id)">ACCEDER</button>
+
+    <h3>CAMPAGNES</h3>
+    <p v-if="!espace.campagnes_actives.length" class="muted">Aucune campagne.</p>
+    <div v-for="c in espace.campagnes_actives" :key="c.id" class="bloc"
+      :class="{ cloturee: c.statut === 'Clôturée' }">
+      <div class="bloc-gauche">
+        <span class="bloc-titre">{{ c.nom }}</span>
+        <span class="muted">(exercice {{ c.exercice }})</span>
+        <span v-if="c.statut === 'Clôturée'" class="statut statut-cloture"
+          title="Campagne clôturée : consultation en lecture seule, aucune saisie possible">
+          <Lock :size="13" /> Clôturée
+        </span>
+        <span v-else-if="c.statut === 'Ouverte'" class="statut statut-ouvert"
+          title="Campagne ouverte : saisie et workflow actifs">
+          <CheckCircle2 :size="13" /> En cours
+        </span>
+        <span v-else class="statut statut-brouillon"
+          title="Campagne en préparation : ouverture par l'Admin">
+          <FolderOpen :size="13" /> Brouillon
+        </span>
+      </div>
+      <button class="btn" :class="{ ghost: c.statut === 'Clôturée' }"
+        :title="c.statut === 'Clôturée'
+          ? 'Consulter cette campagne clôturée (lecture seule)'
+          : 'Accéder aux évaluations de cette campagne'"
+        @click="ouvrir(c)">ACCEDER</button>
     </div>
-    <div v-if="espace.roles.admin" class="bloc info">
+    <div v-if="espace.roles.admin" class="bloc info"
+      title="Menu réservé aux administrateurs">
       Vous êtes Admin : consultez PARAMETRAGE, CAMPAGNES et TABLEAUX DE BORD.
     </div>
   </div>
 </template>
 
 <style scoped>
-.bandeau { background: #fff; border-left: 4px solid #0f3b66; padding: 14px; border-radius: 6px; margin-bottom: 16px; }
-.bloc { background: #fff; border-radius: 6px; padding: 14px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.info { background: #e0f2fe; }
-h3 { margin: 16px 0 8px; font-size: 13px; color: #0f3b66; }
+.bandeau { background: var(--color-surface); border: 1px solid var(--color-border); border-left: 4px solid var(--color-brand); padding: var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-6); }
+.bloc { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); margin: var(--space-2) 0; display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.bloc.cloturee { background: var(--color-bg); }
+.bloc-gauche { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.bloc-titre { font-weight: 700; }
+.statut { display: inline-flex; align-items: center; gap: 5px; border-radius: 12px; padding: 2px 10px; font-size: 11.5px; font-weight: 700; }
+.statut-ouvert { color: var(--color-vert); background: var(--color-vert-bg); }
+.statut-cloture { color: var(--color-text-muted); background: var(--color-arret-bg); }
+.statut-brouillon { color: var(--color-orange); background: var(--color-orange-bg); }
+.info { background: var(--color-brand-light); color: var(--color-brand-dark); }
+h3 { margin: var(--space-6) 0 var(--space-2); font-size: 13px; color: var(--color-brand-dark); }
 </style>

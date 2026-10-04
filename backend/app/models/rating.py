@@ -4,10 +4,17 @@ from datetime import date, datetime
 from sqlalchemy import (
     Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer,
     Numeric, SmallInteger, Text, UniqueConstraint, VARCHAR, JSON,
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+STATUT_ETAPE    = SAEnum("En cours", "Clôturée", name="statut_etape", create_type=False)
+STATUT_GLOBAL   = SAEnum("En cours", "Approuvé", name="statut_global", create_type=False)
+ETAPE_EVAL      = SAEnum("N", "N+1", name="etape_eval", create_type=False)
+DECISION_APPROB = SAEnum("Approuvé", "Approuvé avec réserves", name="decision_approb", create_type=False)
+STATUT_CAMPAGNE = SAEnum("Brouillon", "Ouverte", "Clôturée", name="statut_campagne", create_type=False)
 
 
 class Site(Base):
@@ -136,7 +143,7 @@ class Campagne(Base):
     exercice: Mapped[int] = mapped_column(Integer)
     date_ouverture: Mapped[date | None] = mapped_column(Date, nullable=True)
     date_cloture: Mapped[date | None] = mapped_column(Date, nullable=True)
-    statut: Mapped[str] = mapped_column(VARCHAR(20), default="Brouillon")
+    statut: Mapped[str] = mapped_column(STATUT_CAMPAGNE, default="Brouillon")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now)
 
 
@@ -147,10 +154,10 @@ class Evaluation(Base):
     salarie_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
     numero: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
     date_evaluation: Mapped[date | None] = mapped_column(Date, nullable=True)
-    statut_n: Mapped[str] = mapped_column(VARCHAR(20), default="En cours")
-    statut_n1: Mapped[str] = mapped_column(VARCHAR(20), default="En cours")
-    statut_n2: Mapped[str] = mapped_column(VARCHAR(20), default="En cours")
-    statut_global: Mapped[str] = mapped_column(VARCHAR(20), default="En cours")
+    statut_n: Mapped[str] = mapped_column(STATUT_ETAPE, default="En cours")
+    statut_n1: Mapped[str] = mapped_column(STATUT_ETAPE, default="En cours")
+    statut_n2: Mapped[str] = mapped_column(STATUT_ETAPE, default="En cours")
+    statut_global: Mapped[str] = mapped_column(STATUT_GLOBAL, default="En cours")
     commentaire_global: Mapped[str | None] = mapped_column(Text, nullable=True)
     __table_args__ = (UniqueConstraint("campagne_id", "salarie_id"),)
 
@@ -161,7 +168,7 @@ class EvaluationLigne(Base):
     evaluation_id: Mapped[int] = mapped_column(ForeignKey("evaluations.id"))
     profil_id: Mapped[int] = mapped_column(ForeignKey("profils.id"))
     critere_id: Mapped[int] = mapped_column(ForeignKey("criteres.id"))
-    etape: Mapped[str] = mapped_column(VARCHAR(5))  # 'N' | 'N+1' (enum SQL)
+    etape: Mapped[str] = mapped_column(ETAPE_EVAL)  # 'N' | 'N+1'
     critere_detail_id: Mapped[int | None] = mapped_column(
         ForeignKey("critere_details.id"), nullable=True
     )

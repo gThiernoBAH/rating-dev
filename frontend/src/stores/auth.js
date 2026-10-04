@@ -6,6 +6,7 @@ export const useAuth = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem('token') || '',
     me: null,
+    mustChangePassword: false,
   }),
   getters: {
     isConnected: (s) => !!s.token,
@@ -18,7 +19,11 @@ export const useAuth = defineStore('auth', {
       const { data } = await api.post('/auth/login', { matricule, password })
       this.token = data.access_token
       localStorage.setItem('token', data.access_token)
+      // 1ʳᵉ connexion : le backend signale must_change_password — on le
+      // stocke ET on le retourne pour que LoginView affiche la carte.
+      this.mustChangePassword = !!(data && data.must_change_password)
       await this.fetchMe()
+      return data
     },
     async fetchMe() {
       const { data } = await api.get('/auth/me')

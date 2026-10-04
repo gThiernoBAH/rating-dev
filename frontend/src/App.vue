@@ -1,11 +1,13 @@
-<!-- 2026-10-02 PATCH2 — layout sidebar EVALPOINT : nav a gauche, matricule - nom
-     court + deconnexion en bas, onglets centrees dans la zone contenu. -->
+<!-- 2026-10-03 PATCH UX2 — monte ConfirmDialog (vraie modale, plus de
+     window.confirm), onglets soulignés façon vusine, boutons-icônes d'action
+     avec hints (title). -->
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Bell, LogOut } from 'lucide-vue-next'
+import { LogOut, LayoutGrid, Compass, ClipboardList, Settings, CalendarCheck, BarChart3 } from 'lucide-vue-next'
 import api from './api/client'
 import { useAuth } from './stores/auth'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 
 const auth = useAuth()
 const router = useRouter()
@@ -24,20 +26,29 @@ onMounted(async () => {
   }
 })
 
+const ICONES = {
+  espace: LayoutGrid, navigation: Compass, evaluations: ClipboardList,
+  referentiel: Settings, campagnes: CalendarCheck, dashboard: BarChart3,
+}
+
 const liens = computed(() => {
-  const l = [{ to: '/', label: 'MON ESPACE' }]
-  l.push({ to: '/navigation', label: 'NAVIGATION' })
+  const l = [{ to: '/', label: 'MON ESPACE', key: 'espace' }]
+  l.push({ to: '/navigation', label: 'NAVIGATION', key: 'navigation' })
   if (auth.estN1 || auth.estN2 || auth.isAdmin) {
     const camp = localStorage.getItem('campagneActive')
-    if (camp) l.push({ to: '/evaluations/' + camp, label: 'EVALUATIONS' })
+    if (camp) l.push({ to: '/evaluations/' + camp, label: 'EVALUATIONS', key: 'evaluations' })
   }
   if (auth.isAdmin) {
-    l.push({ to: '/referentiel', label: 'PARAMETRAGE' })
-    l.push({ to: '/campagnes', label: 'CAMPAGNES' })
-    l.push({ to: '/dashboard', label: 'TABLEAUX DE BORD' })
+    l.push({ to: '/referentiel', label: 'PARAMETRAGE', key: 'referentiel' })
+    l.push({ to: '/campagnes', label: 'CAMPAGNES', key: 'campagnes' })
+    l.push({ to: '/dashboard', label: 'TABLEAUX DE BORD', key: 'dashboard' })
   }
   return l
 })
+
+const showSidebar = computed(() =>
+  auth.isConnected && route.path !== '/login' && !auth.mustChangePassword
+)
 
 const identite = computed(() => {
   const me = auth.me
@@ -54,77 +65,147 @@ function deconnexion() {
 
 <template>
   <div class="app">
-    <aside class="sidebar" v-if="auth.isConnected">
+    <aside class="sidebar" v-if="showSidebar">
       <div class="brand">
-        <svg class="logo" viewBox="0 0 32 32" width="30" height="30">
-          <circle cx="16" cy="16" r="13" fill="none" stroke="#7cc4ff" stroke-width="2.5"/>
-          <circle cx="16" cy="16" r="7" fill="none" stroke="#ffffff" stroke-width="2.5"/>
-          <circle cx="16" cy="16" r="2.4" fill="#ffd166"/>
+        <svg class="brand-icon" viewBox="0 0 32 32" width="22" height="22">
+          <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.5"/>
+          <circle cx="16" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="2.5"/>
+          <circle cx="16" cy="16" r="2.4" fill="#f59e0b"/>
         </svg>
-        <span class="brand-name">EVALPOINT</span>
+        <div>
+          <div class="brand-name">EVALPOINT</div>
+          <div class="brand-sub">SIVOP — Évaluation</div>
+        </div>
       </div>
       <nav class="nav">
         <router-link v-for="l in liens" :key="l.to" :to="l.to" class="nav-item"
-          :class="{ active: route.path === l.to }">{{ l.label }}</router-link>
+          :class="{ active: route.path === l.to }" :title="l.label">
+          <component :is="ICONES[l.key]" :size="18" />
+          {{ l.label }}
+        </router-link>
       </nav>
-      <div class="sidebar-bottom">
-        <span class="notif"><Bell :size="16" /><span v-if="nonLues" class="badge">{{ nonLues }}</span></span>
-        <span class="user" :title="auth.me?.nom">{{ identite }}</span>
-        <button class="btn-logout" @click="deconnexion"><LogOut :size="14" /> DECONNEXION</button>
+      <div class="sidebar-footer">
+        <div class="user-name" :title="auth.me?.nom">{{ identite }}</div>
+        <button class="logout-btn" title="Se déconnecter de l'application" @click="deconnexion">
+          <LogOut :size="16" /> Déconnexion
+        </button>
       </div>
     </aside>
-    <main :class="{ padded: auth.isConnected }">
+    <main class="main-area">
       <router-view @notif="refreshNonLues" />
     </main>
+    <ConfirmDialog />
   </div>
 </template>
 
 <style>
-* { box-sizing: border-box; margin: 0; }
-body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; color: #1f2937; }
-.app { display: flex; min-height: 100vh; }
-.sidebar { width: 230px; background: #0f3b66; color: #fff; display: flex; flex-direction: column;
-  position: sticky; top: 0; height: 100vh; }
-.brand { display: flex; align-items: center; gap: 10px; padding: 18px 16px; border-bottom: 1px solid #1d4e85; }
-.brand-name { font-weight: 700; letter-spacing: 1.5px; font-size: 16px; }
-.nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
-.nav-item { color: #cbd5e1; text-decoration: none; font-size: 12.5px; font-weight: 600;
-  padding: 10px 12px; border-radius: 5px; letter-spacing: .3px; }
-.nav-item.active, .nav-item:hover { color: #fff; background: #1d4e85; }
-.sidebar-bottom { padding: 14px 16px; border-top: 1px solid #1d4e85; display: flex;
-  flex-direction: column; gap: 10px; font-size: 12.5px; }
-.notif { position: relative; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-.badge { background: #e11d48; border-radius: 8px; font-size: 10px; padding: 1px 5px; }
-.user { font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.btn-logout { display: flex; align-items: center; gap: 6px; justify-content: center;
-  background: none; border: 1px solid #4b6f95; color: #cbd5e1; border-radius: 5px;
-  padding: 6px; cursor: pointer; font-size: 11.5px; }
-.btn-logout:hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
-.padded { flex: 1; padding: 20px; min-width: 0; }
-table.data { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
-table.data th { background: #e8eef5; text-align: left; padding: 8px; border-bottom: 2px solid #cbd5e1; font-size: 11px; }
-table.data td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
-.btn { background: #0f3b66; color: #fff; border: none; border-radius: 4px; padding: 8px 14px; cursor: pointer; font-size: 13px; }
-.btn.danger { background: #b91c1c; }
-.btn.ghost { background: #fff; color: #0f3b66; border: 1px solid #0f3b66; }
+/* ---------- Layout ---------- */
+.app { display: flex; height: 100%; }
+.main-area { flex: 1; min-width: 0; overflow: auto; padding: var(--space-6); }
+
+/* ---------- Sidebar blanche vusine ---------- */
+.sidebar {
+  width: 220px; flex-shrink: 0;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex; flex-direction: column; height: 100vh;
+  position: sticky; top: 0;
+}
+.brand { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4); border-bottom: 1px solid var(--color-border); }
+.brand-icon {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  background: var(--color-brand); color: var(--color-text-inverse);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 7px;
+}
+.brand-name { font-weight: 800; font-size: var(--font-size-sm); color: var(--color-brand-dark); letter-spacing: .5px; }
+.brand-sub { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.nav { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); flex: 1; }
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-3); border: none; background: none;
+  border-radius: var(--radius-md); font-size: var(--font-size-sm);
+  font-weight: 600; color: var(--color-text-muted);
+  cursor: pointer; text-align: left; text-decoration: none;
+  transition: background-color .15s ease, color .15s ease;
+}
+.nav-item:hover { background: var(--color-brand-light); }
+.nav-item.active { background: var(--color-brand-light); color: var(--color-brand-dark); }
+.sidebar-footer { padding: var(--space-4); border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--space-2); }
+.user-name { font-size: var(--font-size-sm); font-weight: 600; }
+.logout-btn { display: flex; align-items: center; gap: var(--space-2); border: none; background: none; color: var(--color-text-muted); font-size: var(--font-size-sm); cursor: pointer; padding: 0; }
+.logout-btn:hover { color: var(--color-rouge); }
+.notif-btn { position: relative; display: flex; align-items: center; gap: var(--space-2); border: none; background: none; color: var(--color-text-muted); font-size: var(--font-size-sm); cursor: pointer; padding: 0; }
+.notif-btn:hover { color: var(--color-brand-dark); }
+.badge { background: var(--color-rouge); color: #fff; border-radius: 8px; font-size: 10px; padding: 1px 5px; }
+
+/* ---------- Onglets soulignés façon vusine ---------- */
+.tabs { display: flex; gap: var(--space-2); margin: 0 0 var(--space-4); flex-wrap: wrap; border-bottom: 1px solid var(--color-border); justify-content: center; }
+.tab {
+  padding: var(--space-3) var(--space-4); background: none; border: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  cursor: pointer; font-family: inherit; font-size: var(--font-size-sm);
+  font-weight: 600; color: var(--color-text-muted);
+  transition: color .15s ease, border-color .15s ease;
+}
+.tab:hover { color: var(--color-brand); }
+.tab.active { color: var(--color-brand); border-bottom-color: var(--color-brand); }
+
+/* ---------- Boutons-icônes d'action (colonne Actions) ---------- */
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); background: var(--color-surface);
+  color: var(--color-text-muted); cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.icon-btn:hover { background: var(--color-brand-light); color: var(--color-brand-dark); border-color: var(--color-brand); }
+.icon-btn.danger:hover { background: var(--color-rouge-bg); color: var(--color-rouge); border-color: var(--color-rouge); }
+.icon-btn:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+
+/* ---------- Classes globales ---------- */
+table.data { width: 100%; border-collapse: collapse; background: var(--color-surface); font-size: 13px; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-card); }
+table.data th { background: var(--color-brand-light); color: var(--color-brand-dark); text-align: left; padding: var(--space-3); border-bottom: 2px solid var(--color-border); font-size: 11px; letter-spacing: .3px; }
+table.data td { padding: var(--space-3); border-bottom: 1px solid var(--color-border); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  background: var(--color-brand); color: var(--color-text-inverse); border: 1px solid transparent;
+  border-radius: var(--radius-md); padding: 8px 14px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(27, 77, 122, 0.18); background: var(--color-brand-dark); }
+.btn:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+.btn.danger { background: var(--color-rouge); }
+.btn.danger:hover:not(:disabled) { background: #b91c1c; }
+.btn.ghost { background: var(--color-surface); color: var(--color-brand); border: 1px solid var(--color-brand); }
+.btn.ghost:hover:not(:disabled) { background: var(--color-brand-light); }
 .btn.small { padding: 4px 10px; font-size: 11.5px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-.tabs { display: flex; gap: 2px; margin: 12px 0; flex-wrap: wrap; justify-content: center; }
-.tab { padding: 8px 16px; background: #e2e8f0; cursor: pointer; font-size: 12px; border-radius: 4px 4px 0 0; font-weight: 600; }
-.tab.active { background: #0f3b66; color: #fff; }
-.muted { color: #6b7280; }
-.badge-warn { background: #fef3c7; color: #92400e; border-radius: 4px; padding: 2px 8px; font-size: 11px; }
-.locked { color: #b45309; }
-.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
-.modal { background: #fff; border-radius: 8px; padding: 24px; width: min(640px, 92vw); max-height: 86vh; overflow: auto; }
-input, select, textarea { border: 1px solid #cbd5e1; border-radius: 4px; padding: 7px; font-size: 13px; width: 100%; }
-.field { margin-bottom: 10px; }
-label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; }
-.error { background: #fee2e2; color: #991b1b; padding: 10px; border-radius: 4px; margin: 8px 0; font-size: 13px; }
-.ok { background: #dcfce7; color: #166534; padding: 10px; border-radius: 4px; margin: 8px 0; font-size: 13px; }
-.cell-locked { background: #f1f3f5; color: #9ca3af; }
-.barre-outils { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; }
-.lignes-edit { border: 1px solid #e5e7eb; border-radius: 4px; padding: 8px; margin-bottom: 10px; }
+
+.muted { color: var(--color-text-muted); }
+.badge-warn { background: var(--color-orange-bg); color: var(--color-orange); border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+.locked { color: var(--color-orange); }
+
+.modal-bg { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display: flex; align-items: center; justify-content: center; z-index: 900; }
+.modal { background: var(--color-surface); border-radius: var(--radius-lg); padding: var(--space-6); width: min(640px, 92vw); max-height: 86vh; overflow: auto; box-shadow: var(--shadow-card); }
+
+input, select, textarea {
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  padding: 8px var(--space-3); font-size: 13px; font-family: inherit;
+  width: 100%; color: var(--color-text); background: var(--color-surface); outline: none;
+  transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--color-brand); }
+.field { margin-bottom: var(--space-3); }
+label { font-size: 12px; font-weight: 600; display: block; margin-bottom: var(--space-1); color: var(--color-text-muted); }
+
+.error { background: var(--color-rouge-bg); color: #991b1b; padding: 10px; border-radius: var(--radius-md); margin: var(--space-2) 0; font-size: 13px; }
+.ok { background: var(--color-vert-bg); color: #166534; padding: 10px; border-radius: var(--radius-md); margin: var(--space-2) 0; font-size: 13px; }
+
+.cell-locked { background: var(--color-arret-bg); color: var(--color-text-muted); }
+.barre-outils { display: flex; justify-content: space-between; align-items: center; margin: var(--space-2) 0; }
+.lignes-edit { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-2); margin-bottom: var(--space-3); }
 .ligne-edit { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
 .ligne-edit input, .ligne-edit select { padding: 5px; }
 </style>

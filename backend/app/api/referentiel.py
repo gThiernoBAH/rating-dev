@@ -323,3 +323,19 @@ def delete_profil(item_id: int, db: Session = Depends(get_db)):
     db.query(ProfilCritere).filter(ProfilCritere.profil_id == item_id).delete()
     db.delete(obj); db.commit()
     return MessageResponse(detail="Supprime.")
+
+
+@router.patch("/salaries/{salarie_id}/toggle-active", response_model=MessageResponse)
+def toggle_active(salarie_id: int, db: Session = Depends(get_db),
+                  admin: Salarie = Depends(require_admin)):
+    """Active/désactive le compte d'un salarié (connexion impossible si inactif,
+    fiches existantes conservées). Tâche Admin/managers."""
+    obj = db.query(Salarie).get(salarie_id)
+    if not obj:
+        raise HTTPException(404, "Introuvable.")
+    if obj.is_admin:
+        raise HTTPException(422, "Impossible de désactiver un compte Admin.")
+    obj.is_active = not obj.is_active
+    db.commit()
+    etat = "activé" if obj.is_active else "désactivé"
+    return MessageResponse(detail=f"Compte {obj.matricule} {etat}.")

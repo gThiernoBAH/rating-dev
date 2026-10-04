@@ -73,7 +73,7 @@ const etoiles = (n) => n ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
 
 <style scoped>
 .entete { background: #fff; border-radius: 6px; padding: 14px; display: grid; gap: 8px; margin-bottom: 12px; }
-b { color: #0f3b66; font-size: 11px; margin-right: 6px; }
+b { color: var(--color-brand); font-size: 11px; margin-right: 6px; }
 .totaux { display: flex; gap: 20px; font-weight: 600; background: #fff; padding: 10px; border-radius: 6px; margin-top: 6px; font-size: 13px; }
 .divergent td { background: #fef3c7; }
 </style>
