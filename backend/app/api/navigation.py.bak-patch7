@@ -39,13 +39,11 @@ def salaries_selectionnables(db: Session = Depends(get_db),
                              user: Salarie = Depends(get_current_user)):
     """Liste de gauche : matricule – nom (soi-même ou périmètre ; Admin : tout)."""
     if user.is_admin:
-        salaries = db.query(Salarie).filter(Salarie.is_active.is_(True),
-                                            Salarie.is_admin.is_(False)).all()
+        salaries = db.query(Salarie).filter(Salarie.is_active.is_(True)).all()
     else:
         ids = {user.id} | {s.id for s in collaborateurs_directs(db, user.id)} \
               | {s.id for s in collaborateurs_indirects(db, user.id)}
-        salaries = db.query(Salarie).filter(Salarie.id.in_(ids),
-                                       Salarie.is_admin.is_(False)).all()
+        salaries = db.query(Salarie).filter(Salarie.id.in_(ids)).all()
     return [{"id": s.id, "matricule": s.matricule, "nom": s.full_name} for s in salaries]
 
 

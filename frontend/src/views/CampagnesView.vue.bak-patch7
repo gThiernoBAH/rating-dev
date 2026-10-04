@@ -1,8 +1,7 @@
-<!-- 2026-10-04 PATCH 7 — M6 : lignes campagnes compactes (actions en icônes
-     avec hints), familles en cases resserrées (colonne dédiée), statut en badge. -->
+<!-- 2026-10-03 PATCH UX2 — M6 : hints sur tous les boutons, vraie modale avant
+     clôture, rapport de génération conservé. -->
 <script setup>
 import { onMounted, ref } from 'vue'
-import { PlayCircle, FilePlus2, RotateCcw, Lock } from 'lucide-vue-next'
 import api from '../api/client'
 import { useConfirm } from '../composables/useConfirm'
 
@@ -58,8 +57,6 @@ async function cloturer(c) {
 }
 
 function famillesCochees() { return Object.keys(familles.value).filter(k => familles.value[k]).map(Number) }
-
-const FAM_LABELS = { 1: 'Cadres', 2: 'AM', 3: 'Empl.-Ouvr.' }
 </script>
 
 <template>
@@ -76,37 +73,28 @@ const FAM_LABELS = { 1: 'Cadres', 2: 'AM', 3: 'Empl.-Ouvr.' }
     <div v-if="erreur" class="error">{{ erreur }}</div>
 
     <table class="data">
-      <thead><tr><th>NOM</th><th>EXERCICE</th><th>OUVERTURE</th><th>CLÔTURE</th><th>STATUT</th><th>FAMILLES</th><th>ACTIONS</th></tr></thead>
+      <thead><tr><th>NOM</th><th>EXERCICE</th><th>OUVERTURE</th><th>CLÔTURE</th><th>STATUT</th><th>ACTIONS</th></tr></thead>
       <tbody><tr v-for="c in campagnes" :key="c.id">
-        <td>{{ c.nom }}</td>
-        <td>{{ c.exercice }}</td>
-        <td>{{ c.date_ouverture }}</td>
-        <td>{{ c.date_cloture }}</td>
-        <td><span class="badge-statut"
-          :class="c.statut === 'Ouverte' ? 'statut-vert' : c.statut === 'Clôturée' ? 'statut-arret' : 'statut-orange'">{{ c.statut }}</span></td>
+        <td>{{ c.nom }}</td><td>{{ c.exercice }}</td><td>{{ c.date_ouverture }}</td><td>{{ c.date_cloture }}</td>
+        <td>{{ c.statut }}</td>
         <td>
-          <template v-if="c.statut === 'Ouverte'">
-            <label v-for="(lib, f) in FAM_LABELS" :key="f" class="fam"
-              :title="'Générer les fiches des ' + lib + ' (famille ' + f + ')'">
-              <input type="checkbox" v-model="familles[f]" /> {{ lib }}
-            </label>
-          </template>
-        </td>
-        <td class="actions">
-          <button v-if="c.statut === 'Brouillon'" class="icon-btn" style="color: var(--color-vert)"
+          <button v-if="c.statut === 'Brouillon'" class="btn ghost"
             title="Ouvrir la campagne : elle passe en statut Ouverte"
-            @click="ouvrir(c)"><PlayCircle :size="16" /></button>
-          <template v-if="c.statut === 'Ouverte'">
-            <button class="icon-btn"
-              title="Générer les fiches d'évaluation des familles cochées (idempotent)"
-              @click="action(c, 'generer', { familles: famillesCochees() })"><FilePlus2 :size="16" /></button>
-            <button class="icon-btn"
-              title="Générer uniquement les fiches manquantes (nouveaux arrivants, rattrapage)"
-              @click="action(c, 'generer', { familles: famillesCochees(), rattrapage: true })"><RotateCcw :size="16" /></button>
-            <button class="icon-btn danger" style="margin-left:6px"
-              title="Clôturer définitivement la campagne"
-              @click="cloturer(c)"><Lock :size="16" /></button>
-          </template>
+            @click="ouvrir(c)">OUVRIR</button>
+          <span v-if="c.statut === 'Ouverte'" style="margin-left:8px">
+            <label style="font-size:11px" title="Générer les fiches des Cadres (famille 1)">
+              <input type="checkbox" v-model="familles[1]" /> Cadres</label>
+            <label style="font-size:11px" title="Générer les fiches des Agents de maîtrise (famille 2)">
+              <input type="checkbox" v-model="familles[2]" /> AM</label>
+            <label style="font-size:11px" title="Générer les fiches des Employés-Ouvriers (famille 3)">
+              <input type="checkbox" v-model="familles[3]" /> Empl.-Ouvr.</label>
+            <button class="btn" title="Générer les fiches d'évaluation des familles cochées (idempotent)"
+              @click="action(c, 'generer', { familles: famillesCochees() })">GENERER LES FICHES</button>
+            <button class="btn ghost" title="Générer uniquement les fiches manquantes (nouveaux arrivants, rattrapage)"
+              @click="action(c, 'generer', { familles: famillesCochees(), rattrapage: true })">RATTRAPAGE</button>
+            <button class="btn danger" title="Clôturer définitivement la campagne"
+              @click="cloturer(c)">CLOTURER</button>
+          </span>
         </td>
       </tr></tbody>
     </table>
@@ -117,8 +105,4 @@ const FAM_LABELS = { 1: 'Cadres', 2: 'AM', 3: 'Empl.-Ouvr.' }
 h3 { font-size: 13px; color: var(--color-brand-dark); margin-bottom: 8px; }
 .forme { display: flex; gap: 10px; background: var(--color-surface); padding: 14px; border-radius: var(--radius-md); margin-bottom: 12px; flex-wrap: wrap; }
 .field { min-width: 160px; }
-table.data td { padding: 6px 10px; vertical-align: middle; }
-.fam { display: inline-flex; align-items: center; gap: 3px; margin-right: 10px; font-size: 11px; font-weight: 600; color: var(--color-text-muted); cursor: pointer; }
-.fam input { width: auto; margin: 0; }
-.actions { white-space: nowrap; }
 </style>

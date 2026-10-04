@@ -1,4 +1,36 @@
-<!-- 2026-10-04 PATCH 7b — M1 : copie conforme du Login.vue vusine-dev
+#!/usr/bin/env bash
+# ============================================================================
+# PATCH 7b — EVALPOINT (rating-dev) — 04/10/2026
+# 1. Login copié À L'IDENTIQUE du Login.vue de vusine-dev (carte 400px,
+#    champs/bouton 48px, icône 48px, placeholders) — seul le branding change.
+#    Remplace la version « compacte » du patch 7 qui ne correspondait pas.
+# 2. MOBILE (1er volet) — App.vue responsive : sidebar en tiroir (hamburger)
+#    sous 768px, overlay de fermeture, paddings réduits.
+#
+# Usage : à la racine de rating-dev/ :
+#   bash patch7b.sh
+# ============================================================================
+set -euo pipefail
+
+if [ ! -d backend/app ] || [ ! -d frontend/src ]; then
+  echo "ERREUR : lancez ce script depuis la racine de rating-dev/."
+  exit 1
+fi
+
+for f in frontend/src/views/LoginView.vue frontend/src/App.vue; do
+  cp "$f" "$f.bak-patch7b"
+done
+
+python3 - <<'PYEOF'
+# -*- coding: utf-8 -*-
+import re, sys, pathlib
+
+def write_full(path, content):
+    pathlib.Path(path).write_text(content, encoding="utf-8")
+    print("  -", path)
+
+# ---------------------------------------------------------------- LOGIN identique
+LOGIN = '''<!-- 2026-10-04 PATCH 7b — M1 : copie conforme du Login.vue vusine-dev
      (carte 400px, champs/bouton 48px, placeholders, oeil afficher/masquer).
      Seule difference : branding EVALPOINT (cible a point dore) et champs
      Matricule. Conserve le parcours 1ere connexion (patch 6c). -->
@@ -288,3 +320,103 @@ async function seConnecter() {
   line-height: 1.5;
 }
 </style>
+'''
+write_full("frontend/src/views/LoginView.vue", LOGIN)
+
+# ------------------------------------------------- MOBILE : App.vue responsive
+p = pathlib.Path("frontend/src/App.vue")
+src = p.read_text(encoding="utf-8")
+
+repls = [
+    # import de l'icone Menu
+    (r"import \{ LogOut, LayoutGrid, Compass, ClipboardList, Settings, CalendarCheck, BarChart3 \} from 'lucide-vue-next'",
+     "import { LogOut, LayoutGrid, Compass, ClipboardList, Settings, CalendarCheck, BarChart3, Menu, X } from 'lucide-vue-next'"),
+    # etat tiroir
+    (r"const nonLues = ref\(0\)",
+     "const nonLues = ref(0)\nconst menuOuvert = ref(false)\n\n// mobile : fermer le tiroir apres navigation\nfunction naviguer() { menuOuvert.value = false }"),
+    # overlay + hamburger dans le template
+    (r'  <div class="app">\n    <aside class="sidebar" v-if="showSidebar">',
+     '''  <div class="app">
+    <div v-if="menuOuvert && showSidebar" class="overlay" @click="menuOuvert = false"></div>
+    <header v-if="showSidebar" class="topbar">
+      <button class="hamburger" title="Ouvrir le menu" @click="menuOuvert = true">
+        <Menu :size="22" />
+      </button>
+      <div class="topbar-brand">EVALPOINT</div>
+    </header>
+    <aside class="sidebar" v-if="showSidebar" :class="{ ouvert: menuOuvert }">'''),
+    # fermeture du tiroir au clic sur un lien
+    (r'<router-link v-for="l in liens" :key="l.to" :to="l.to" class="nav-item"\n          :class="\{ active: route.path === l.to \}" :title="l.label">',
+     '<router-link v-for="l in liens" :key="l.to" :to="l.to" class="nav-item"\n          :class="{ active: route.path === l.to }" :title="l.label" @click="naviguer">'),
+    # bouton fermer dans la sidebar (mobile)
+    (r'''      <div class="sidebar-footer">''',
+     '''      <button class="sidebar-close" title="Fermer le menu" @click="menuOuvert = false">
+        <X :size="20" />
+      </button>
+      <div class="sidebar-footer">'''),
+]
+for pat, rep in repls:
+    src, n = re.subn(pat, rep, src, count=1, flags=re.S)
+    if n != 1:
+        print(f"ERREUR : motif introuvable dans App.vue :\n  {pat[:80]}")
+        sys.exit(1)
+
+# styles responsive ajoutes a la fin du bloc <style>
+MOBILE_CSS = '''
+/* ---------- PATCH 7b : mobile ---------- */
+.topbar { display: none; }
+.hamburger, .sidebar-close { display: none; }
+
+@media (max-width: 768px) {
+  .app { flex-direction: column; }
+  .topbar {
+    display: flex; align-items: center; gap: var(--space-3);
+    position: sticky; top: 0; z-index: 500;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-2) var(--space-4);
+    min-height: 52px;
+  }
+  .hamburger {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); background: var(--color-surface);
+    color: var(--color-text); cursor: pointer;
+  }
+  .topbar-brand { font-weight: 800; letter-spacing: 1px; color: var(--color-brand-dark); }
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 250px; z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+    box-shadow: var(--shadow-card);
+  }
+  .sidebar.ouvert { transform: translateX(0); }
+  .sidebar-close {
+    display: inline-flex; align-items: center; justify-content: center;
+    position: absolute; top: var(--space-3); right: var(--space-3);
+    width: 36px; height: 36px; border: none; border-radius: var(--radius-md);
+    background: var(--color-bg); color: var(--color-text-muted); cursor: pointer;
+  }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, .45);
+    z-index: 900;
+  }
+  .main-area { padding: var(--space-3); width: 100%; }
+}
+'''
+if not src.rstrip().endswith("</style>"):
+    print("ERREUR : fin de App.vue inattendue (</style> attendu).")
+    sys.exit(1)
+src = src.rstrip()[: -len("</style>")] + MOBILE_CSS + "</style>\n"
+p.write_text(src, encoding="utf-8")
+print("  - frontend/src/App.vue")
+
+print("OK")
+PYEOF
+
+echo ""
+echo "✅ PATCH 7b appliqué."
+echo "Login : compare a la capture vusine — doit etre identique (400px, 48px, placeholders)."
+echo "Mobile : tester en mode responsive navigateur (<768px) — hamburger, tiroir, overlay."
+echo "Sauvegardes : *.bak-patch7b."

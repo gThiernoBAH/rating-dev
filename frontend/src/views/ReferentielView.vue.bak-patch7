@@ -3,7 +3,7 @@
      modale (plus de window.confirm), onglets soulignés façon vusine. -->
 <script setup>
 import { onMounted, ref, computed } from 'vue'
-import { Pencil, Trash2, Plus } from 'lucide-vue-next'
+import { Pencil, Trash2, Plus, UserCheck, UserX } from 'lucide-vue-next'
 import api from '../api/client'
 import DataTable from '../components/DataTable.vue'
 import { useConfirm } from '../composables/useConfirm'
@@ -49,8 +49,7 @@ function ajouter(t) {
   else if (t === 'profils') forme.value = { t, code: '', libelle: '', criteres: [] }
   else if (t === 'salaries') forme.value = { t, matricule: '', nom: '', prenoms: '', site_id: null,
     departement_id: null, section_id: null, emploi_id: null, categorie_id: null, poste_id: null,
-    date_embauche: '', email: '', n1_id: null, hors_evaluation: false,
-    is_admin: false, is_active: true }
+    date_embauche: '', email: '', n1_id: null, hors_evaluation: false }
 }
 
 function modifier(t, item) {
@@ -104,8 +103,7 @@ async function enregistrer() {
         section_id: f.section_id || null, emploi_id: f.emploi_id || null,
         categorie_id: f.categorie_id || null, poste_id: f.poste_id || null,
         date_embauche: f.date_embauche || null, email: f.email || null,
-        n1_id: f.n1_id || null, hors_evaluation: !!f.hors_evaluation,
-        is_admin: !!f.is_admin, is_active: f.is_active !== false }
+        n1_id: f.n1_id || null, hors_evaluation: !!f.hors_evaluation }
       if (modeEdition.value) await api.put('/referentiel/salaries/' + f.id, corps)
       else await api.post('/referentiel/salaries', corps)
     }
@@ -129,6 +127,22 @@ async function supprimer(t, item) {
     message.value = 'Supprimé.'
     await charger()
   } catch (e) { erreur.value = (e.response && e.response.data && e.response.data.detail) || 'Suppression impossible.' }
+}
+
+async function basculerActif(s) {
+  const actuel = s.is_active ? 'actif' : 'inactif'
+  const futur = s.is_active ? 'DÉSACTIVER (le compte ne pourra plus se connecter)' : 'ACTIVER'
+  const ok = await confirm({
+    title: 'Compte ' + actuel,
+    message: `Le compte de ${s.matricule} — ${nomCourt(s)} est ${actuel}. ${futif} ce compte ?`,
+    danger: s.is_active, confirmLabel: s.is_active ? 'Désactiver' : 'Activer',
+  })
+  if (!ok) return
+  try {
+    await api.patch('/referentiel/salaries/' + s.id + '/toggle-active')
+    message.value = 'Compte ' + (s.is_active ? 'désactivé' : 'activé') + '.'
+    await charger()
+  } catch (e) { erreur.value = e.response?.data?.detail || 'Action impossible.' }
 }
 
 function ajouterDetail() { forme.value.details.push({ libelle_descriptif: '', valeur: 1, ordre: 0 }) }
@@ -252,12 +266,13 @@ function cleLigne(r, i) { return r.id ?? i }
       <template #cell-details_liste="{ row }">
         <div v-for="d in row.details" :key="d.id">{{ d.libelle_descriptif }} → {{ d.valeur }}</div>
       </template>
-      <template #cell-actif_aff="{ row }">
-        <span class="badge-statut" :class="row.is_active ? 'statut-vert' : 'statut-rouge'">
-          {{ row.is_active ? 'Actif' : 'Inactif' }}
-        </span>
-      </template>
       <template #cell-actions="{ row }">
+        <button v-if="onglet === 'salaries'" class="icon-btn"
+          :class="{ danger: row.is_active }"
+          :title="row.is_active
+            ? 'Désactiver le compte de ' + row.matricule + ' (il ne pourra plus se connecter)'
+            : 'Activer le compte de ' + row.matricule"
+          @click="basculerActif(row)"><component :is="row.is_active ? UserX : UserCheck" :size="15" /></button>
         <button class="icon-btn" style="margin-left:6px"
           :title="'Modifier — ' + (row.code || row.matricule || row.id)"
           @click="modifier(onglet, row)"><Pencil :size="15" /></button>
@@ -379,12 +394,6 @@ function cleLigne(r, i) { return r.id ?? i }
               <option v-for="s in donnees.salaries" :key="s.id" :value="s.id">{{ s.matricule }} — {{ nomCourt(s) }}</option></select></div>
           <div class="field"><label>HORS ÉVALUATION</label>
             <input type="checkbox" v-model="forme.hors_evaluation" style="width:auto" title="Exclure ce salarié de la génération des fiches" /></div>
-          <div class="field"><label>ADMINISTRATEUR</label>
-            <input type="checkbox" v-model="forme.is_admin" style="width:auto"
-              title="Compte Administrateur : accès au paramétrage, campagnes et tableaux de bord. Exclu des évaluations et statistiques." /></div>
-          <div class="field"><label>ACTIF</label>
-            <input type="checkbox" v-model="forme.is_active" style="width:auto"
-              title="Compte actif : le salarié peut se connecter. Décoché : connexion refusée (fiches existantes conservées)." /></div>
         </template>
 
         <div style="display:flex; gap:8px; margin-top:14px">

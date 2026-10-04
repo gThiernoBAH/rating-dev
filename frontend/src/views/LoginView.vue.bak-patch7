@@ -1,7 +1,7 @@
-<!-- 2026-10-04 PATCH 7b — M1 : copie conforme du Login.vue vusine-dev
-     (carte 400px, champs/bouton 48px, placeholders, oeil afficher/masquer).
-     Seule difference : branding EVALPOINT (cible a point dore) et champs
-     Matricule. Conserve le parcours 1ere connexion (patch 6c). -->
+<!-- 2026-10-03 PATCH UX — M1 : connexion EVALPOINT au design vusine-dev.
+     Fond gris clair, carte blanche 400px centree (flex + height 100%),
+     icones dans les champs, bouton oeil afficher/masquer, hauteur 48px.
+     Branding EVALPOINT (cible a point dorre) conserve. -->
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -16,7 +16,7 @@ const password = ref('')
 const showPassword = ref(false)
 const erreur = ref('')
 const chargement = ref(false)
-// 1re connexion : mot de passe jamais defini -> creation obligatoire
+// 2026-10-03 : 1ʳᵉ connexion — mot de passe jamais défini -> création obligatoire
 const premiereConnexion = ref(false)
 const nouveauMdp = ref('')
 const confirmationMdp = ref('')
@@ -24,7 +24,7 @@ const confirmationMdp = ref('')
 async function definirMotDePasse() {
   erreur.value = ''
   if (nouveauMdp.value.trim().length < 6) {
-    erreur.value = 'Le mot de passe doit contenir au moins 6 caracteres.'
+    erreur.value = 'Le mot de passe doit contenir au moins 6 caractères.'
     return
   }
   if (nouveauMdp.value !== confirmationMdp.value) {
@@ -40,7 +40,7 @@ async function definirMotDePasse() {
     await auth.fetchMe()
     router.push('/')
   } catch (e) {
-    erreur.value = e.response?.data?.detail || 'Impossible de creer le mot de passe.'
+    erreur.value = e.response?.data?.detail || 'Impossible de créer le mot de passe.'
   } finally { chargement.value = false }
 }
 
@@ -67,7 +67,7 @@ async function seConnecter() {
     <div v-if="!premiereConnexion" class="login-card">
       <div class="brand">
         <div class="brand-icon">
-          <svg viewBox="0 0 32 32" width="28" height="28">
+          <svg viewBox="0 0 32 32" width="24" height="24">
             <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.5"/>
             <circle cx="16" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="2.5"/>
             <circle cx="16" cy="16" r="2.4" fill="#f59e0b"/>
@@ -75,7 +75,7 @@ async function seConnecter() {
         </div>
         <div>
           <div class="brand-name">EVALPOINT</div>
-          <div class="brand-sub">SIVOP — Evaluation et notation du personnel</div>
+          <div class="brand-sub">SIVOP — Évaluation et notation du personnel</div>
         </div>
       </div>
 
@@ -84,7 +84,7 @@ async function seConnecter() {
           <span class="field-label">Matricule</span>
           <div class="input-group">
             <User :size="18" class="input-icon" />
-            <input v-model="matricule" type="text" placeholder="Matricule" autofocus required />
+            <input v-model="matricule" type="text" autofocus required />
           </div>
         </label>
 
@@ -92,7 +92,7 @@ async function seConnecter() {
           <span class="field-label">Mot de passe</span>
           <div class="input-group">
             <Lock :size="18" class="input-icon" />
-            <input v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="Mot de passe" required />
+            <input v-model="password" :type="showPassword ? 'text' : 'password'" required />
             <button type="button" class="toggle-pwd" @click="showPassword = !showPassword">
               <component :is="showPassword ? EyeOff : Eye" :size="18" />
             </button>
@@ -107,31 +107,26 @@ async function seConnecter() {
       </form>
     </div>
 
-    <!-- 1re connexion : creer SON mot de passe (min 6) -->
+    <!-- 1ʳᵉ connexion : créer SON mot de passe (min 6) -->
     <div v-if="premiereConnexion" class="login-card">
-      <h2 class="mdp-titre">Creer votre mot de passe</h2>
+      <h2 class="mdp-titre">Créer votre mot de passe</h2>
       <p class="mdp-texte">Votre compte n'a pas encore de mot de passe.
-        Choisissez-en un (6 caracteres minimum) — il vous servira a chaque connexion.</p>
+        Choisissez-en un (6 caractères minimum) — il vous servira à chaque connexion.</p>
       <form @submit.prevent="definirMotDePasse" class="login-form">
         <label class="field">
           <span class="field-label">Nouveau mot de passe</span>
-          <div class="input-group">
-            <Lock :size="18" class="input-icon" />
-            <input :type="showPassword ? 'text' : 'password'" v-model="nouveauMdp"
-              placeholder="6 caracteres minimum" autofocus />
-          </div>
+          <input :type="showPassword ? 'text' : 'password'" v-model="nouveauMdp"
+            title="6 caractères minimum" autofocus />
         </label>
         <label class="field">
           <span class="field-label">Confirmer le mot de passe</span>
-          <div class="input-group">
-            <Lock :size="18" class="input-icon" />
-            <input :type="showPassword ? 'text' : 'password'" v-model="confirmationMdp"
-              placeholder="Retapez le meme mot de passe" />
-          </div>
+          <input :type="showPassword ? 'text' : 'password'" v-model="confirmationMdp"
+            title="Retapez le même mot de passe" />
         </label>
         <p v-if="erreur" class="error-message">{{ erreur }}</p>
-        <button type="submit" class="submit-btn" :disabled="chargement">
-          {{ chargement ? 'Creation…' : 'Creer mon mot de passe' }}
+        <button type="submit" class="submit-btn" :disabled="chargement"
+          title="Enregistrer ce mot de passe et ouvrir l'application">
+          {{ chargement ? 'Création…' : 'Créer mon mot de passe' }}
         </button>
       </form>
     </div>
@@ -148,7 +143,6 @@ async function seConnecter() {
   background: var(--color-bg);
   padding: var(--space-4);
 }
-
 .login-card {
   width: 100%;
   max-width: 400px;
@@ -158,133 +152,38 @@ async function seConnecter() {
   box-shadow: var(--shadow-card);
   padding: var(--space-8) var(--space-6);
 }
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-8);
-}
-
+.brand { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-8); }
 .brand-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  background: var(--color-brand);
-  color: var(--color-text-inverse);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  width: 48px; height: 48px; border-radius: var(--radius-md);
+  background: var(--color-brand); color: var(--color-text-inverse);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-
-.brand-name {
-  font-size: var(--font-size-lg);
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: var(--color-brand-dark);
-}
-
-.brand-sub {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.field-label {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.input-group {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-icon {
-  position: absolute;
-  left: 14px;
-  color: var(--color-text-muted);
-  pointer-events: none;
-}
-
+.brand-name { font-size: var(--font-size-lg); font-weight: 800; letter-spacing: 1px; color: var(--color-brand-dark); }
+.brand-sub { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.login-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.field { display: flex; flex-direction: column; gap: var(--space-1); }
+.field-label { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-text-muted); }
+.input-group { position: relative; display: flex; align-items: center; }
+.input-icon { position: absolute; left: 14px; color: var(--color-text-muted); pointer-events: none; }
 .input-group input {
-  width: 100%;
   height: var(--touch-target-min);
   padding: 0 var(--space-3) 0 44px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
   font-size: var(--font-size-base);
-  color: var(--color-text);
-  background: var(--color-surface);
-  outline: none;
-  transition: border-color 0.15s;
 }
-
-.input-group input:focus {
-  border-color: var(--color-brand);
-}
-
 .toggle-pwd {
-  position: absolute;
-  right: 12px;
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  display: flex;
-  padding: var(--space-1);
+  position: absolute; right: 12px; background: none; border: none;
+  color: var(--color-text-muted); cursor: pointer; display: flex; padding: var(--space-1);
 }
-
-.error-message {
-  color: var(--color-rouge);
-  font-size: var(--font-size-sm);
-  margin: 0;
-}
-
+.error-message { color: var(--color-rouge); font-size: var(--font-size-sm); margin: 0; }
 .submit-btn {
   height: var(--touch-target-min);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-brand);
-  color: var(--color-text-inverse);
-  font-size: var(--font-size-base);
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s;
+  border: none; border-radius: var(--radius-md);
+  background: var(--color-brand); color: var(--color-text-inverse);
+  font-size: var(--font-size-base); font-weight: 700; cursor: pointer;
+  transition: background .15s;
 }
-
-.submit-btn:hover:not(:disabled) {
-  background: var(--color-brand-dark);
-}
-
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.mdp-titre {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-lg);
-  color: var(--color-brand-dark);
-}
-.mdp-texte {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  margin: 0 0 var(--space-6);
-  line-height: 1.5;
-}
+.submit-btn:hover:not(:disabled) { background: var(--color-brand-dark); }
+.submit-btn:disabled { opacity: .6; cursor: not-allowed; }
+.mdp-titre { margin: 0 0 var(--space-2); font-size: var(--font-size-lg); color: var(--color-brand-dark); }
+.mdp-texte { font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 0 0 var(--space-6); line-height: 1.5; }
 </style>
