@@ -10,8 +10,6 @@ import api from './api/client'
 import { useAuth } from './stores/auth'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import TourGuide from './components/TourGuide.vue'   // PATCH 10
-import TourGuide from './components/TourGuide.vue'   // PATCH 10
-import TourGuide from './components/TourGuide.vue'   // PATCH 10
 
 const auth = useAuth()
 const router = useRouter()
