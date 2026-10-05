@@ -31,6 +31,8 @@ class LigneFiche(BaseModel):
     critere_libelle: str
     ordre: int
     coefficient: float
+    editable: bool = False                      # PATCH 12 : libellé « A REMPLIR »
+    libelle_perso: str | None = None              # PATCH 12 : pré-rempli objectifs N-1
     # étape N
     auto_libelle: str | None = None       # libellé descriptif coché (pas une note visible)
     commentaire_n: str | None = None
@@ -51,6 +53,7 @@ class QcmIn(BaseModel):
     profil_id: int
     critere_id: int
     critere_detail_id: int
+    valeur_choisie: float | None = None        # PATCH 12 : étoiles intervalle
     commentaire: str = Field(min_length=3)  # obligatoire dès qu'une case est cochée
 
 

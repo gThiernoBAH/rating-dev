@@ -22,6 +22,7 @@ class Site(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
     libelle: Mapped[str] = mapped_column(VARCHAR(120))
+    actif: Mapped[bool] = mapped_column(Boolean, default=True)  # PATCH 12 (Site)
 
 
 class Departement(Base):
@@ -29,6 +30,7 @@ class Departement(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
     libelle: Mapped[str] = mapped_column(VARCHAR(120))
+    actif: Mapped[bool] = mapped_column(Boolean, default=True)  # PATCH 12 (Departement)
     site_id: Mapped[int] = mapped_column(ForeignKey("sites.id"))
 
 
@@ -37,6 +39,7 @@ class Section(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
     libelle: Mapped[str] = mapped_column(VARCHAR(120))
+    actif: Mapped[bool] = mapped_column(Boolean, default=True)  # PATCH 12 (Section)
     departement_id: Mapped[int] = mapped_column(ForeignKey("departements.id"))
 
 
@@ -46,6 +49,7 @@ class Emploi(Base):
     code: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
     libelle: Mapped[str] = mapped_column(VARCHAR(120))
     famille: Mapped[int] = mapped_column(SmallInteger)  # 1 Cadres / 2 AM / 3 Empl.-Ouvr.
+    actif: Mapped[bool] = mapped_column(Boolean, default=True)  # PATCH 12 (Emploi)
 
 
 class Categorie(Base):
@@ -53,6 +57,7 @@ class Categorie(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
     libelle: Mapped[str] = mapped_column(VARCHAR(120))
+    actif: Mapped[bool] = mapped_column(Boolean, default=True)  # PATCH 12 (Categorie)
 
 
 class Poste(Base):
@@ -60,6 +65,7 @@ class Poste(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
     libelle: Mapped[str] = mapped_column(VARCHAR(120))
+    actif: Mapped[bool] = mapped_column(Boolean, default=True)  # PATCH 12 (Poste)
 
 
 class Critere(Base):
@@ -68,6 +74,7 @@ class Critere(Base):
     code: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
     libelle: Mapped[str] = mapped_column(VARCHAR(200))
     actif: Mapped[bool] = mapped_column(Boolean, default=True)
+    editable: Mapped[bool] = mapped_column(Boolean, default=False)  # PATCH 12 — « A REMPLIR »
     details: Mapped[list["CritereDetail"]] = relationship(
         back_populates="critere", cascade="all, delete-orphan"
     )
@@ -76,9 +83,13 @@ class Critere(Base):
 class CritereDetail(Base):
     __tablename__ = "critere_details"
     id: Mapped[int] = mapped_column(primary_key=True)
-    critere_id: Mapped[int] = mapped_column(ForeignKey("criteres.id"))
+    critere_id: Mapped[int | None] = mapped_column(ForeignKey("criteres.id"), nullable=True)  # PATCH 12 : bibliothèque
     libelle_descriptif: Mapped[str] = mapped_column(VARCHAR(300))
     valeur: Mapped[float] = mapped_column(Numeric(5, 2))
+    sens: Mapped[int] = mapped_column(SmallInteger, default=1)   # PATCH 12 : 1=unique, 2=intervalle
+    valeur_min: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)  # PATCH 12
+    valeur_max: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)  # PATCH 12
+    actif: Mapped[bool] = mapped_column(Boolean, default=True)  # PATCH 12 (détail)
     ordre: Mapped[int] = mapped_column(Integer, default=0)
     critere: Mapped[Critere] = relationship(back_populates="details")
 
@@ -126,6 +137,7 @@ class Salarie(Base):
     n1_id: Mapped[int | None] = mapped_column(ForeignKey("salaries.id"), nullable=True)
     n2_id: Mapped[int | None] = mapped_column(ForeignKey("salaries.id"), nullable=True)  # PATCH 9
     hors_evaluation: Mapped[bool] = mapped_column(Boolean, default=False)
+    nature: Mapped[str] = mapped_column(VARCHAR(20), default="Embauché")  # PATCH 12 : Embauché/Journalier/Contractuel/Stagiaire/Apprenti
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -173,6 +185,7 @@ class EvaluationLigne(Base):
     critere_detail_id: Mapped[int | None] = mapped_column(
         ForeignKey("critere_details.id"), nullable=True
     )
+    valeur_choisie: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)  # PATCH 12 : étoiles intervalle
     commentaire: Mapped[str | None] = mapped_column(Text, nullable=True)
     horodatage: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now)
     __table_args__ = (
@@ -276,3 +289,15 @@ class ObjectifKr(Base):
     avancement: Mapped[int] = mapped_column(SmallInteger, default=0)
 
 
+
+# ================== PATCH 12 : libellés « A REMPLIR » par fiche ==================
+
+class EvaluationCritere(Base):
+    """PATCH 12 — libellé de critère personnalisé pour UNE fiche (objectifs N-1 -> N,
+    critères editable dont le libellé par défaut est « A REMPLIR »)."""
+    __tablename__ = "evaluation_criteres"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    evaluation_id: Mapped[int] = mapped_column(ForeignKey("evaluations.id"))
+    critere_id: Mapped[int] = mapped_column(ForeignKey("criteres.id"))
+    libelle: Mapped[str] = mapped_column(VARCHAR(300))
+    __table_args__ = (UniqueConstraint("evaluation_id", "critere_id"),)

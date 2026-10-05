@@ -16,12 +16,13 @@ const erreur = ref('')
 const forme = ref(null)
 const modeEdition = ref(false)
 
-const ONGLETS = ['salaries', 'emplois', 'profils', 'criteres', 'sites',
-                 'departements', 'sections', 'categories', 'postes']
-const LIBELLES = {
-  salaries: 'Salariés', emplois: 'Emplois', profils: 'Profils', criteres: 'Critères',
+const ONGLETS = ['sites', 'departements', 'sections', 'emplois', 'categories',   // PATCH 12 : ordre demandé
+                 'postes', 'salaries', 'details_criteres', 'criteres', 'profils']
+const LIBELLES = {   // PATCH 12
   sites: 'Sites', departements: 'Départements', sections: 'Sections',
-  categories: 'Catégories', postes: 'Postes',
+  emplois: 'Emplois', categories: 'Catégories', postes: 'Postes',
+  salaries: 'Salariés', details_criteres: 'Détails Critères',
+  criteres: 'Critères', profils: 'Profils',
 }
 
 async function charger() {
@@ -29,7 +30,7 @@ async function charger() {
                 'postes', 'salaries', 'criteres', 'profils']
   donnees.value = {}
   for (const c of cles) {
-    try { donnees.value[c] = (await api.get('/referentiel/' + c)).data }
+    try { donnees.value[c] = (await api.get('/referentiel/' + (c === 'details_criteres' ? 'details-criteres' : c))).data }  // PATCH 12
     catch { donnees.value[c] = [] }
   }
 }
@@ -45,12 +46,13 @@ function ajouter(t) {
   else if (t === 'departements') forme.value = { t, code: '', libelle: '', site_id: null }
   else if (t === 'sections') forme.value = { t, code: '', libelle: '', departement_id: null }
   else if (t === 'emplois') forme.value = { t, code: '', libelle: '', famille: 3, profils: [] }
-  else if (t === 'criteres') forme.value = { t, code: '', libelle: '', actif: true, details: [] }
+  else if (t === 'details_criteres') forme.value = { t, libelle_descriptif: '', valeur: 1, sens: 1, valeur_min: null, valeur_max: null, actif: true }   // PATCH 12
+  else if (t === 'criteres') forme.value = { t, code: '', libelle: '', actif: true, editable: false, details: [] }   // PATCH 12
   else if (t === 'profils') forme.value = { t, code: '', libelle: '', criteres: [] }
   else if (t === 'salaries') forme.value = { t, matricule: '', nom: '', prenoms: '', site_id: null,
     departement_id: null, section_id: null, emploi_id: null, categorie_id: null, poste_id: null,
     date_embauche: '', email: '', n1_id: null, n2_id: null, hors_evaluation: false,
-    is_admin: false, is_active: true }
+    nature: 'Embauché', is_admin: false, is_active: true }   // PATCH 12 : nature
 }
 
 function modifier(t, item) {
@@ -59,8 +61,9 @@ function modifier(t, item) {
   const f = forme.value
   Object.keys(item).forEach(function (k) { if (k in f && item[k] !== null) f[k] = item[k] })
   if (t === 'emplois') f.profils = (item.profils || []).map(function (p) { return p.id })
-  if (t === 'criteres') f.details = (item.details || []).map(function (d) {
-    return { libelle_descriptif: d.libelle_descriptif, valeur: d.valeur, ordre: d.ordre } })
+  if (t === 'criteres') f.details = (item.details || []).map(function (d) {   // PATCH 12
+    return { libelle_descriptif: d.libelle_descriptif, valeur: d.valeur, ordre: d.ordre,
+             sens: d.sens || 1, valeur_min: d.valeur_min, valeur_max: d.valeur_max, actif: d.actif !== false } })
   if (t === 'profils') f.criteres = (item.criteres || []).map(function (c) {
     return { critere_id: c.critere_id, coefficient: c.coefficient, ordre: c.ordre } })
   f.id = item.id
@@ -86,10 +89,22 @@ async function enregistrer() {
       if (modeEdition.value) await api.put('/referentiel/emplois/' + f.id + '?famille=' + f.famille, corps)
       else await api.post('/referentiel/emplois?famille=' + f.famille, corps)
       await api.put('/referentiel/emplois/' + f.id + '/profils', { profils: f.profils })
+    } else if (f.t === 'details_criteres') {   // PATCH 12
+      const corps = { libelle_descriptif: f.libelle_descriptif, valeur: Number(f.valeur), ordre: 0,
+        sens: Number(f.sens || 1),
+        valeur_min: Number(f.sens) === 2 && f.valeur_min !== null ? Number(f.valeur_min) : null,
+        valeur_max: Number(f.sens) === 2 && f.valeur_max !== null ? Number(f.valeur_max) : null,
+        actif: !!f.actif }
+      if (modeEdition.value) await api.put('/referentiel/details-criteres/' + f.id, corps)
+      else await api.post('/referentiel/details-criteres', corps)
     } else if (f.t === 'criteres') {
-      const corps = { code: f.code, libelle: f.libelle, actif: f.actif,
+      const corps = { code: f.code, libelle: f.libelle, actif: f.actif, editable: !!f.editable,   // PATCH 12
         details: f.details.map(function (d, i) {
-          return { libelle_descriptif: d.libelle_descriptif, valeur: Number(d.valeur), ordre: i } }) }
+          return { libelle_descriptif: d.libelle_descriptif, valeur: Number(d.valeur), ordre: i,
+            sens: Number(d.sens || 1),
+            valeur_min: Number(d.sens) === 2 && d.valeur_min != null ? Number(d.valeur_min) : null,
+            valeur_max: Number(d.sens) === 2 && d.valeur_max != null ? Number(d.valeur_max) : null,
+            actif: d.actif !== false } }) }
       if (modeEdition.value) await api.put('/referentiel/criteres/' + f.id, corps)
       else await api.post('/referentiel/criteres', corps)
     } else if (f.t === 'profils') {
@@ -106,7 +121,8 @@ async function enregistrer() {
         date_embauche: f.date_embauche || null, email: f.email || null,
         n1_id: f.n1_id || null, n2_id: f.n2_id || null,
         hors_evaluation: !!f.hors_evaluation,
-        is_admin: !!f.is_admin, is_active: f.is_active !== false }
+        is_admin: !!f.is_admin, is_active: f.is_active !== false,
+        nature: f.nature || 'Embauché' }   // PATCH 12
       if (modeEdition.value) await api.put('/referentiel/salaries/' + f.id, corps)
       else await api.post('/referentiel/salaries', corps)
     }
@@ -126,7 +142,7 @@ async function supprimer(t, item) {
   if (!ok) return
   erreur.value = ''
   try {
-    await api.delete('/referentiel/' + t + '/' + item.id)
+    await api.delete('/referentiel/' + (t === 'details_criteres' ? 'details-criteres' : t) + '/' + item.id)   // PATCH 12
     message.value = 'Supprimé.'
     await charger()
   } catch (e) { erreur.value = (e.response && e.response.data && e.response.data.detail) || 'Suppression impossible.' }
@@ -160,7 +176,29 @@ async function reinitialiserTous() {
   } catch (e) { erreur.value = e.response?.data?.detail || 'Action impossible.' }
 }
 
-function ajouterDetail() { forme.value.details.push({ libelle_descriptif: '', valeur: 1, ordre: 0 }) }
+function ajouterDetail() { forme.value.details.push({ libelle_descriptif: '', valeur: 1, ordre: 0,
+  sens: 1, valeur_min: null, valeur_max: null, actif: true }) }   // PATCH 12
+function ajouterDetailBiblio(ev) {   // PATCH 12 : depuis la bibliothèque Détails Critères
+  const b = (donnees.value.details_criteres || []).find(d => d.id === Number(ev.target.value))
+  if (b) forme.value.details.push({ libelle_descriptif: b.libelle_descriptif, valeur: b.valeur,
+    ordre: forme.value.details.length, sens: b.sens || 1, valeur_min: b.valeur_min,
+    valeur_max: b.valeur_max, actif: b.actif !== false })
+  ev.target.value = ''
+}
+function nbSalaries(r) {   // PATCH 12 : comptage des salariés rattachés
+  const cle = ({ sites: 'site_id', departements: 'departement_id', sections: 'section_id',
+    emplois: 'emploi_id', categories: 'categorie_id', postes: 'poste_id' })[onglet.value]
+  if (!cle) return 0
+  return (donnees.value.salaries || []).filter(s => s[cle] === r.id).length
+}
+async function basculerActif(t, row) {   // PATCH 12
+  erreur.value = ''
+  try {
+    await api.patch('/referentiel/' + t + '/' + row.id + '/toggle-active')
+    message.value = (row.actif === false ? 'Réactivé' : 'Désactivé') + ' : ' + (row.code || '')
+    await charger()
+  } catch (e) { erreur.value = e.response?.data?.detail || 'Action impossible.' }
+}
 function ajouterCritereProfil() { forme.value.criteres.push({ critere_id: null, coefficient: 1, ordre: 0 }) }
 function monter(liste, i) { if (i > 0) { const x = liste.splice(i, 1)[0]; liste.splice(i - 1, 0, x) } }
 function descendre(liste, i) { if (i < liste.length - 1) { const x = liste.splice(i, 1)[0]; liste.splice(i + 1, 0, x) } }
@@ -189,6 +227,7 @@ const colonnes = computed(() => {
     { key: 'nom', label: 'Nom', format: (v, r) => nomCourt(r) },
     { key: 'n1_nom', label: 'N+1' },
     { key: 'n2_nom', label: 'N+2' },
+    { key: 'nature', label: 'Nature' },   // PATCH 12
     { key: 'hors_evaluation', label: 'Hors éval.', format: v => (v ? 'Oui' : 'Non'), align: 'center' },
     { key: 'actif_aff', label: 'Actif', format: v => v, align: 'center', searchable: false },
     ACTIONS,
@@ -198,6 +237,8 @@ const colonnes = computed(() => {
     { key: 'libelle', label: 'Libellé' },
     { key: 'famille', label: 'Famille', format: v => FAMILLES[v] || v },
     { key: 'profils_liste', label: 'Profils', keyFn: r => r },
+    { key: 'nb_salaries', label: 'Nb Salariés', align: 'center', searchable: false },   // PATCH 12 (emplois)
+    { key: 'actif_aff', label: 'Actif', format: v => v, align: 'center', searchable: false },
     ACTIONS,
   ]
   if (t === 'profils') return [
@@ -216,17 +257,30 @@ const colonnes = computed(() => {
     { key: 'code', label: 'Code' },
     { key: 'libelle', label: 'Libellé' },
     { key: 'site_code', label: 'Site' },
+    { key: 'nb_salaries', label: 'Nb Salariés', align: 'center', searchable: false },   // PATCH 12 (départements)
+    { key: 'actif_aff', label: 'Actif', format: v => v, align: 'center', searchable: false },
     ACTIONS,
   ]
   if (t === 'sections') return [
     { key: 'code', label: 'Code' },
     { key: 'libelle', label: 'Libellé' },
     { key: 'dept_libelle', label: 'Département' },
+    { key: 'nb_salaries', label: 'Nb Salariés', align: 'center', searchable: false },   // PATCH 12 (sections)
+    { key: 'actif_aff', label: 'Actif', format: v => v, align: 'center', searchable: false },
+    ACTIONS,
+  ]
+  if (t === 'details_criteres') return [   // PATCH 12
+    { key: 'libelle_descriptif', label: 'Descriptif' },
+    { key: 'type_aff', label: 'Type valeur' },
+    { key: 'val_aff', label: 'Valeur' },
+    { key: 'actif_aff', label: 'Actif', format: v => v, align: 'center', searchable: false },
     ACTIONS,
   ]
   return [
     { key: 'code', label: 'Code' },
     { key: 'libelle', label: 'Libellé' },
+    { key: 'nb_salaries', label: 'Nb Salariés', align: 'center', searchable: false },   // PATCH 12 (défaut)
+    { key: 'actif_aff', label: 'Actif', format: v => v, align: 'center', searchable: false },
     ACTIONS,
   ]
 })
@@ -237,27 +291,37 @@ const lignes = computed(() => {
   const base = donnees.value[t] || []
   if (t === 'salaries') return base.map(s => ({
     ...s, actif_aff: s.is_active ? 'Actif' : 'Inactif',
+    admin_tri: s.is_admin ? 0 : 1,   // PATCH 12 : Admins en tête
   }))
   if (t === 'emplois') return base.map(e => ({
     ...e,
     profils_liste: (e.profils || []).map(p => p.libelle).join(' · '),
+    nb_salaries: nbSalaries(e), actif_aff: e.actif !== false ? 'Actif' : 'Inactif',   // PATCH 12
   }))
   if (t === 'profils') return base.map(p => ({
     ...p,
     criteres_liste: (p.criteres || []).map(c => libelleCritere(c.critere_id) + ' ×' + c.coefficient).join(' · '),
   }))
   if (t === 'criteres') return base.map(c => ({ ...c, details_liste: ' ' }))
+  if (t === 'details_criteres') return base.map(d => ({   // PATCH 12
+    ...d,
+    type_aff: Number(d.sens) === 2 ? 'Intervalle' : 'Unique',
+    val_aff: Number(d.sens) === 2 ? (d.valeur_min + ' à ' + d.valeur_max) : d.valeur,
+    actif_aff: d.actif !== false ? 'Actif' : 'Inactif',
+  }))
   if (t === 'departements') return base.map(d => ({
     ...d,
     site_code: (donnees.value.sites || []).find(s => s.id === d.site_id)?.code || '—',
+    nb_salaries: nbSalaries(d), actif_aff: d.actif !== false ? 'Actif' : 'Inactif',   // PATCH 12
   }))
   if (t === 'sections') return base.map(s => ({
     ...s,
     dept_libelle: libelleDepartement(s.departement_id),
+    nb_salaries: nbSalaries(s), actif_aff: s.actif !== false ? 'Actif' : 'Inactif',   // PATCH 12
   }))
-  return base
+  return base.map(r => ({ ...r, nb_salaries: nbSalaries(r),   // PATCH 12
+    actif_aff: r.actif !== false ? 'Actif' : 'Inactif' }))
 })
-
 function cleLigne(r, i) { return r.id ?? i }
 </script>
 
@@ -271,6 +335,7 @@ function cleLigne(r, i) { return r.id ?? i }
     <div v-if="erreur && !forme" class="error">{{ erreur }}</div>
 
     <DataTable :columns="colonnes" :rows="lignes" :row-key="cleLigne"
+      :default-sort="onglet === 'salaries' ? { key: 'admin_tri', dir: 1 } : null"   <!-- PATCH 12 : Admins en tête -->
       :search-placeholder="`Rechercher un ${LIBELLES[onglet].toLowerCase().replace(/s$/, '')}…`">
       <template #filtres>
         <button class="btn" title="Ajouter un nouvel enregistrement dans cet onglet"
@@ -285,9 +350,12 @@ function cleLigne(r, i) { return r.id ?? i }
         <div v-for="d in row.details" :key="d.id">{{ d.libelle_descriptif }} → {{ d.valeur }}</div>
       </template>
       <template #cell-actif_aff="{ row }">
-        <span class="badge-statut" :class="row.is_active ? 'statut-vert' : 'statut-rouge'">
+        <span v-if="onglet === 'salaries'" class="badge-statut" :class="row.is_active ? 'statut-vert' : 'statut-rouge'">
           {{ row.is_active ? 'Actif' : 'Inactif' }}
         </span>
+        <button v-else class="badge-statut" :class="row.actif !== false ? 'statut-vert' : 'statut-rouge'"   <!-- PATCH 12 -->
+          :title="row.actif !== false ? 'Désactiver ce référentiel : plus pris en compte à la génération des fiches' : 'Réactiver ce référentiel'"
+          @click="basculerActif(onglet, row)">{{ row.actif !== false ? 'Actif' : 'Inactif' }}</button>
       </template>
       <template #cell-actions="{ row }">
         <button v-if="onglet === 'salaries'" class="icon-btn"
@@ -355,6 +423,9 @@ function cleLigne(r, i) { return r.id ?? i }
           <div class="field"><label>CODE</label><input v-model="forme.code" title="Code unique du critère" /></div>
           <div class="field"><label>CRITERE</label><input v-model="forme.libelle" title="Libellé du critère affiché dans la grille" /></div>
           <div class="field"><label>ACTIF</label><input type="checkbox" v-model="forme.actif" style="width:auto" title="Critère actif (utilisable dans les profils)" /></div>
+          <div class="field"><label>EDITABLE (« A REMPLIR »)</label>   <!-- PATCH 12 -->
+            <input type="checkbox" v-model="forme.editable" style="width:auto"
+              title="Critère éditable : le libellé est pré-rempli avec les objectifs de la campagne précédente, le salarié peut l\'ajuster à l\'auto-évaluation" /></div>
           <label>DETAILS (libellé affiché dans le QCM + valeur cachée /5)</label>
           <div class="lignes-edit">
             <div v-for="(d, i) in forme.details" :key="i" class="ligne-edit">
@@ -389,24 +460,28 @@ function cleLigne(r, i) { return r.id ?? i }
           <div class="field"><label>MATRICULE</label><input v-model="forme.matricule" title="Matricule = identifiant de connexion du salarié" /></div>
           <div class="field"><label>NOM</label><input v-model="forme.nom" title="Nom du salarié" /></div>
           <div class="field"><label>PRÉNOMS</label><input v-model="forme.prenoms" title="Prénoms du salarié" /></div>
+          <div class="field"><label>NATURE</label>   <!-- PATCH 12 -->
+            <select v-model="forme.nature" title="Nature du contrat : Embauché, Journalier, Contractuel, Stagiaire ou Apprenti">
+              <option>Embauché</option><option>Journalier</option><option>Contractuel</option>
+              <option>Stagiaire</option><option>Apprenti</option></select></div>
           <div class="field"><label>SITE</label>
             <select v-model="forme.site_id" title="Site d'affectation"><option :value="null">—</option>
-              <option v-for="s in donnees.sites" :key="s.id" :value="s.id">{{ s.code }}</option></select></div>
+              <option v-for="s" in donnees.sites" :key="s.id" :value="s.id">{{ s.code }} — {{ s.libelle }}</option>   <!-- PATCH 12 --></select></div>
           <div class="field"><label>DÉPARTEMENT</label>
             <select v-model="forme.departement_id" title="Département d'affectation"><option :value="null">—</option>
-              <option v-for="d in donnees.departements" :key="d.id" :value="d.id">{{ d.code }}</option></select></div>
+              <option v-for="d" in donnees.departements" :key="d.id" :value="d.id">{{ d.code }} — {{ d.libelle }}</option>   <!-- PATCH 12 --></select></div>
           <div class="field"><label>SECTION</label>
             <select v-model="forme.section_id" title="Section d'affectation"><option :value="null">—</option>
-              <option v-for="s in donnees.sections" :key="s.id" :value="s.id">{{ s.code }}</option></select></div>
+              <option v-for="s" in donnees.sections" :key="s.id" :value="s.id">{{ s.code }} — {{ s.libelle }}</option>   <!-- PATCH 12 --></select></div>
           <div class="field"><label>EMPLOI</label>
             <select v-model="forme.emploi_id" title="Emploi : détermine les profils d'évaluation de la fiche"><option :value="null">—</option>
-              <option v-for="e in donnees.emplois" :key="e.id" :value="e.id">{{ e.code }}</option></select></div>
+              <option v-for="e" in donnees.emplois" :key="e.id" :value="e.id">{{ e.code }} — {{ e.libelle }}</option>   <!-- PATCH 12 --></select></div>
           <div class="field"><label>CATÉGORIE</label>
             <select v-model="forme.categorie_id" title="Catégorie du salarié"><option :value="null">—</option>
-              <option v-for="c in donnees.categories" :key="c.id" :value="c.id">{{ c.code }}</option></select></div>
+              <option v-for="c" in donnees.categories" :key="c.id" :value="c.id">{{ c.code }} — {{ c.libelle }}</option>   <!-- PATCH 12 --></select></div>
           <div class="field"><label>POSTE</label>
             <select v-model="forme.poste_id" title="Poste occupé"><option :value="null">—</option>
-              <option v-for="p in donnees.postes" :key="p.id" :value="p.id">{{ p.code }}</option></select></div>
+              <option v-for="p" in donnees.postes" :key="p.id" :value="p.id">{{ p.code }} — {{ p.libelle }}</option>   <!-- PATCH 12 --></select></div>
           <div class="field"><label>DATE EMBAUCHE</label><input v-model="forme.date_embauche" type="date" title="Date d'embauche (servira au cutoff d'ancienneté)" /></div>
           <div class="field"><label>EMAIL</label><input v-model="forme.email" title="Adresse email professionnelle (notifications)" /></div>
           <div class="field"><label>N+1</label>

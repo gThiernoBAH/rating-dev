@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_admin
 from app.models.rating import (
     Approbation, Critere, CritereDetail, EmploiProfil, Evaluation,
-    EvaluationLigne, Poste, Profil, ProfilCritere, Salarie,
+    EvaluationCritere, EvaluationLigne, Poste, Profil, ProfilCritere, Salarie,  # PATCH 12
 )
 from app.schemas.common import MessageResponse
 from app.schemas.evaluation import (
@@ -144,21 +144,30 @@ def fiche(evaluation_id: int, db: Session = Depends(get_db),
         for pc in pcs:
             c = db.query(Critere).get(pc.critere_id)
             details = db.query(CritereDetail) \
-                .filter(CritereDetail.critere_id == pc.critere_id) \
-                .order_by(CritereDetail.ordre).all()
+                .filter(CritereDetail.critere_id == pc.critere_id,
+                        CritereDetail.actif.is_(True)) \
+                .order_by(CritereDetail.ordre).all()  # PATCH 12 : détails actifs
             ln = par_cle.get((pid, pc.critere_id, "N"))
             ln1 = par_cle.get((pid, pc.critere_id, "N+1"))
+            ec = db.query(EvaluationCritere).filter(                 # PATCH 12 : libellé perso
+                EvaluationCritere.evaluation_id == e.id,
+                EvaluationCritere.critere_id == pc.critere_id).first()
             auto_det = db.query(CritereDetail).get(ln.critere_detail_id) if ln and ln.critere_detail_id else None
             eval_det = db.query(CritereDetail).get(ln1.critere_detail_id) if ln1 and ln1.critere_detail_id else None
             fiche_lignes.append(LigneFiche(
                 profil_id=pid, profil_libelle=p.libelle if p else "",
-                critere_id=pc.critere_id, critere_libelle=c.libelle if c else "",
+                critere_id=pc.critere_id, critere_libelle=(ec.libelle if ec else (c.libelle if c else "")),  # PATCH 12 : A REMPLIR remplacé
+                editable=(c.editable if c else False),
+                libelle_perso=(ec.libelle if ec else None),
                 ordre=pc.ordre, coefficient=float(pc.coefficient),
                 auto_libelle=auto_det.libelle_descriptif if auto_det else None,
                 commentaire_n=ln.commentaire if ln else None,
                 eval_libelle=eval_det.libelle_descriptif if eval_det else None,
                 commentaire_n1=ln1.commentaire if ln1 else None,
-                details=[{"id": d.id, "libelle": d.libelle_descriptif}
+                details=[{"id": d.id, "libelle": d.libelle_descriptif,
+                          "sens": d.sens,
+                          "valeur_min": float(d.valeur_min) if d.valeur_min is not None else None,
+                          "valeur_max": float(d.valeur_max) if d.valeur_max is not None else None}  # PATCH 12
                          for d in details],
             ))
 
@@ -187,6 +196,15 @@ def saisir_qcm(evaluation_id: int, p: QcmIn, db: Session = Depends(get_db),
     detail = db.query(CritereDetail).get(p.critere_detail_id)
     if not detail or detail.critere_id != p.critere_id:
         raise HTTPException(422, "Détail de critère invalide pour ce critère.")
+    if not detail.actif:   # PATCH 12 : étoiles intervalle
+        raise HTTPException(422, "Détail de critère désactivé.")
+    valeur_choisie = None
+    if (detail.sens or 1) == 2:
+        vmin = float(detail.valeur_min if detail.valeur_min is not None else detail.valeur)
+        vmax = float(detail.valeur_max if detail.valeur_max is not None else detail.valeur)
+        valeur_choisie = float(p.valeur_choisie) if p.valeur_choisie is not None else vmin
+        if not (min(vmin, vmax) - 1e-9 <= valeur_choisie <= max(vmin, vmax) + 1e-9):
+            raise HTTPException(422, f"Valeur étoile hors intervalle [{min(vmin, vmax)} ; {max(vmin, vmax)}].")
 
     if p.etape == "N+1":
         ligne_n = db.query(EvaluationLigne).filter(
@@ -211,12 +229,14 @@ def saisir_qcm(evaluation_id: int, p: QcmIn, db: Session = Depends(get_db),
                  "commentaire": ligne.commentaire}
         ligne.critere_detail_id = p.critere_detail_id
         ligne.commentaire = p.commentaire.strip()
+        ligne.valeur_choisie = valeur_choisie   # PATCH 12
     else:
         ligne = EvaluationLigne(
             evaluation_id=evaluation_id, profil_id=p.profil_id,
             critere_id=p.critere_id, etape=p.etape,
             critere_detail_id=p.critere_detail_id,
             commentaire=p.commentaire.strip(),
+            valeur_choisie=valeur_choisie,  # PATCH 12
         )
         db.add(ligne)
 
@@ -322,3 +342,34 @@ def deverrouiller(evaluation_id: int, etape: str, justification: str,
                justification=justification.strip())
     db.commit()
     return MessageResponse(detail="Étape déverrouillée. Justification journalisée.")
+
+
+# ================== PATCH 12 : libellé des critères « A REMPLIR » ==================
+
+@router.post("/{evaluation_id}/libelle-critere", response_model=MessageResponse)
+def libelle_critere(evaluation_id: int, p: dict, db: Session = Depends(get_db),
+                    user: Salarie = Depends(get_current_user)):
+    """Critère editable : le salarié (N) précise le libellé de son objectif.
+    Pré-rempli à la génération par les objectifs de la campagne précédente."""
+    e = db.query(Evaluation).get(evaluation_id)
+    if not e:
+        raise HTTPException(404, "Fiche introuvable.")
+    role = mon_role(db, e, user)
+    if role != "N":
+        raise HTTPException(403, "Seul le salarié peut renseigner le libellé de son objectif.")
+    critere_id, libelle = p.get("critere_id"), (p.get("libelle") or "").strip()
+    if not critere_id or len(libelle) < 3:
+        raise HTTPException(422, "critere_id et libellé (3 caractères min.) obligatoires.")
+    c = db.query(Critere).get(critere_id)
+    if not c or not c.editable:
+        raise HTTPException(422, "Ce critère n'est pas modifiable.")
+    ec = db.query(EvaluationCritere).filter(
+        EvaluationCritere.evaluation_id == evaluation_id,
+        EvaluationCritere.critere_id == critere_id).first()
+    if ec:
+        ec.libelle = libelle
+    else:
+        db.add(EvaluationCritere(evaluation_id=evaluation_id,
+                                 critere_id=critere_id, libelle=libelle))
+    db.commit()
+    return MessageResponse(detail="Libellé du critère enregistré.")

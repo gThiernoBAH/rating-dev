@@ -26,6 +26,8 @@ class GenerationIn(BaseModel):
 
 
 class GenerationReport(BaseModel):
+    exclus_inactifs: int = 0        # PATCH 12 : référentiels désactivés
+    objectifs_prefilles: int = 0    # PATCH 12 : critères A REMPLIR pré-remplis
     creees: int = 0
     deja_existantes: int = 0
     hors_evaluation: int = 0

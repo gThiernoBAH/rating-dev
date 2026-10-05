@@ -551,8 +551,8 @@ sub(p, r'Approbation, Critere, CritereDetail, EmploiProfil, Evaluation,\s*\n'
     'Approbation, Critere, CritereDetail, EmploiProfil, Evaluation,\n'
     '    EvaluationCritere, EvaluationLigne, Poste, Profil, ProfilCritere, Salarie,  # PATCH 12',
     mk="EvaluationCritere, EvaluationLigne", regex=True)
-sub(p, r'details = db\.query\(CritereDetail\)\\?\s*\n'
-        r'\s*\.filter\(CritereDetail\.critere_id == pc\.critere_id\)\\?\s*\n'
+sub(p, r'details = db\.query\(CritereDetail\)\s*\\?\s*\n'
+        r'\s*\.filter\(CritereDetail\.critere_id == pc\.critere_id\)\s*\\?\s*\n'
         r'\s*\.order_by\(CritereDetail\.ordre\)\.all\(\)',
     'details = db.query(CritereDetail) \\\n'
     '                .filter(CritereDetail.critere_id == pc.critere_id,\n'
@@ -575,7 +575,7 @@ sub(p, r'details=\[\{"id": d\.id, "libelle": d\.libelle_descriptif\}\s*\n\s*for 
     'details=[{"id": d.id, "libelle": d.libelle_descriptif,\n'
     '                          "sens": d.sens,\n'
     '                          "valeur_min": float(d.valeur_min) if d.valeur_min is not None else None,\n'
-    '                          "valeur_max": float(d.valeur_max) if d.valeur_max is not None else None}]  # PATCH 12\n'
+    '                          "valeur_max": float(d.valeur_max) if d.valeur_max is not None else None}  # PATCH 12\n'
     '                         for d in details],',
     mk='"sens": d.sens', regex=True)
 sub(p, r'    detail = db\.query\(CritereDetail\)\.get\(p\.critere_detail_id\)\s*\n'
@@ -668,6 +668,12 @@ c = rd(p)
 if "PATCH 12 : /5 normalisé" in c:
     print("  SKIP  navigation.py :: moyennes déjà normalisées")
 elif AVG_OLD in c:
+    # PATCH 12b : 2e occurrence = "func.avg(CritereDetail.valeur))" (le ')' ferme db.query).
+    # Il faut le faire passer AVANT le commentaire, sinon il devient du commentaire
+    # et db.query( n'est jamais fermé (ERREUR ligne 80).
+    AVG_NEW2 = (AVG_NEW.replace("valeur)))", "valeur))))")
+                .replace("normalisé", "normalisé"))  # 4 parens : coalesce, case, avg, db.query
+    c = c.replace(AVG_OLD + ")", AVG_NEW2)
     wr(p, c.replace(AVG_OLD, AVG_NEW))
     print("  OK    navigation.py :: moyennes normalisées")
 else:

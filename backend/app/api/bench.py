@@ -1,5 +1,5 @@
-# PATCH 10 — benchmark anonymisé inter-sections (Admin) : agrégats par section,
-# sections de moins de 5 fiches masquées (« Section anonymisée »).
+# PATCH 12 — benchmark inter-sections (Admin) : agrégats par section,
+# TOUTES les sections affichées (plus d'anonymisation < 5 fiches).
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -29,14 +29,9 @@ def sections(db: Session = Depends(get_db),
             a["n1"] += 1
         if e.statut_global == "Approuvé":
             a["app"] += 1
-    out = []
-    for lib, a in sorted(agg.items(), key=lambda kv: -kv[1]["nb"]):
-        anonyme = a["nb"] < 5
-        out.append({
-            "section": "Section anonymisée (< 5 fiches)" if anonyme else lib,
-            "anonyme": anonyme, "nb_fiches": a["nb"],
-            "pct_n": round(100 * a["n"] / a["nb"]),
-            "pct_n1": round(100 * a["n1"] / a["nb"]),
-            "pct_approuvees": round(100 * a["app"] / a["nb"]),
-        })
-    return out
+    return [{
+        "section": lib, "nb_fiches": a["nb"],
+        "pct_n": round(100 * a["n"] / a["nb"]),
+        "pct_n1": round(100 * a["n1"] / a["nb"]),
+        "pct_approuvees": round(100 * a["app"] / a["nb"]),
+    } for lib, a in sorted(agg.items(), key=lambda kv: -kv[1]["nb"])]

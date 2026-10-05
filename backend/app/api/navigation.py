@@ -1,7 +1,7 @@
 # 2026-10-02 — Navigation (§8) : GRAPHE salarié vs moyenne de sa section, RECAP,
 # benchmark inter-sections par critère, historique inter-exercices. Consultation seule.
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
+from sqlalchemy import case, func   # PATCH 12
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -49,7 +49,8 @@ def salaries_selectionnables(db: Session = Depends(get_db),
               | {s.id for s in collaborateurs_indirects(db, user.id)}
         salaries = db.query(Salarie).filter(Salarie.id.in_(ids),
                                        Salarie.is_admin.is_(False)).all()
-    return [{"id": s.id, "matricule": s.matricule, "nom": s.full_name} for s in salaries]
+    return [{"id": s.id, "matricule": s.matricule, "nom": s.full_name,
+            "section_id": s.section_id} for s in salaries]   # PATCH 12
 
 
 @router.get("/graphe")
@@ -63,7 +64,12 @@ def graphe(salarie_id: int, campagne_id: int, db: Session = Depends(get_db),
         raise HTTPException(404, "Salarié introuvable.")
 
     notes_sal = dict(db.query(
-        EvaluationLigne.critere_id, func.avg(CritereDetail.valeur)
+        EvaluationLigne.critere_id, func.avg(case(
+            (CritereDetail.sens == 2,
+             func.coalesce(EvaluationLigne.valeur_choisie, CritereDetail.valeur)
+             * 5.0 / CritereDetail.valeur_max),
+            else_=func.coalesce(EvaluationLigne.valeur_choisie,
+                                 CritereDetail.valeur)))  # PATCH 12 : /5 normalisé
     ).join(Evaluation, Evaluation.id == EvaluationLigne.evaluation_id)
      .join(CritereDetail, CritereDetail.id == EvaluationLigne.critere_detail_id)
      .filter(Evaluation.campagne_id == campagne_id,
@@ -72,7 +78,12 @@ def graphe(salarie_id: int, campagne_id: int, db: Session = Depends(get_db),
      .group_by(EvaluationLigne.critere_id).all())
 
     q = (
-        db.query(EvaluationLigne.critere_id, func.avg(CritereDetail.valeur))
+        db.query(EvaluationLigne.critere_id, func.avg(case(
+            (CritereDetail.sens == 2,
+             func.coalesce(EvaluationLigne.valeur_choisie, CritereDetail.valeur)
+             * 5.0 / CritereDetail.valeur_max),
+            else_=func.coalesce(EvaluationLigne.valeur_choisie,
+                                 CritereDetail.valeur))))  # PATCH 12 : /5 normalisé
         .join(Evaluation, Evaluation.id == EvaluationLigne.evaluation_id)
         .join(Salarie, Salarie.id == Evaluation.salarie_id)
         .join(CritereDetail, CritereDetail.id == EvaluationLigne.critere_detail_id)
@@ -117,7 +128,12 @@ def benchmark(critere_id: int, campagne_id: int, db: Session = Depends(get_db),
         if not (d.is_admin or collaborateurs_directs(db, user.id)):
             raise HTTPException(403, "Réservé aux Admin et managers (N+1).")
     rows = db.query(
-        Section.libelle, func.avg(CritereDetail.valeur)
+        Section.libelle, func.avg(case(
+            (CritereDetail.sens == 2,
+             func.coalesce(EvaluationLigne.valeur_choisie, CritereDetail.valeur)
+             * 5.0 / CritereDetail.valeur_max),
+            else_=func.coalesce(EvaluationLigne.valeur_choisie,
+                                 CritereDetail.valeur)))  # PATCH 12 : /5 normalisé
     ).join(Salarie, Salarie.section_id == Section.id) \
      .join(Evaluation, Evaluation.salarie_id == Salarie.id) \
      .join(EvaluationLigne, EvaluationLigne.evaluation_id == Evaluation.id) \
@@ -148,3 +164,23 @@ def historique(salarie_id: int, db: Session = Depends(get_db),
             "statut_global": e.statut_global,
         })
     return out
+
+
+# ================== PATCH 12 : sections du périmètre (filtre NAVIGATION) ==================
+
+@router.get("/sections")
+def sections_perimetre(db: Session = Depends(get_db),
+                       user: Salarie = Depends(get_current_user)):
+    """Sections accessibles dans le périmètre de l'utilisateur (Admin : toutes)."""
+    if user.is_admin:
+        rows = (db.query(Section)
+                .join(Salarie, Salarie.section_id == Section.id)
+                .filter(Salarie.is_active.is_(True), Salarie.is_admin.is_(False))
+                .distinct().all())
+    else:
+        ids = {user.id} | {s.id for s in collaborateurs_directs(db, user.id)} \
+              | {s.id for s in collaborateurs_indirects(db, user.id)}
+        rows = (db.query(Section)
+                .join(Salarie, Salarie.section_id == Section.id)
+                .filter(Salarie.id.in_(ids)).distinct().all())
+    return [{"id": x.id, "libelle": x.libelle} for x in sorted(rows, key=lambda z: z.libelle)]

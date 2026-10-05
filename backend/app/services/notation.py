@@ -30,3 +30,17 @@ def est_divergente(note1: float | None, note2: float | None, seuil: float = 2) -
     if note1 is None or note2 is None:
         return False
     return abs(note1 - note2) >= seuil
+
+
+# ================== PATCH 12 : normalisation des détails à intervalle ==================
+
+def note_detail(detail, valeur_choisie=None) -> float:
+    """Note /5 d'un détail coché. Valeur unique -> valeur brute.
+    Intervalle (sens=2) -> valeur choisie (étoiles) normalisée par diviseur
+    max/5 (ex. 7-9 sur 20 -> 7/4=1.75 .. 9/4=2.25 sur 5)."""
+    v = valeur_choisie if valeur_choisie is not None else float(detail.valeur)
+    sens = getattr(detail, "sens", 1) or 1
+    vmax = getattr(detail, "valeur_max", None)
+    if sens == 2 and vmax:
+        return round(float(v) * 5.0 / float(vmax), 2)
+    return round(float(v), 2)

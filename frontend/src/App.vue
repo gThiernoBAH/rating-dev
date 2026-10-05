@@ -54,7 +54,7 @@ const liens = computed(() => {
   l.push({ to: '/navigation', label: 'NAVIGATION', key: 'navigation' })
   l.push({ to: '/checkins', label: 'CHECK-INS', key: 'checkins' })        // PATCH 10
   l.push({ to: '/objectifs', label: 'OBJECTIFS', key: 'objectifs' })
-  if (auth.estN1 || auth.estN2 || auth.isAdmin) {
+  if ((auth.estN1 || auth.estN2 || auth.isAdmin) && !estMobile.value) {   // PATCH 12 : masqué mobile (via MON ESPACE)
     const camp = localStorage.getItem('campagneActive')
     if (camp) l.push({ to: '/evaluations/' + camp, label: 'EVALUATIONS', key: 'evaluations' })
   }
@@ -96,9 +96,7 @@ function deconnexion() {
       <button class="topbar-toggle" :title="themeSombre ? 'Passer en mode clair' : 'Passer en mode sombre'" @click="basculerTheme">
         <Sun v-if="themeSombre" :size="18" /><Moon v-else :size="18" />
       </button>
-      <button class="topbar-logout" title="Se déconnecter de l'application" @click="deconnexion">
-        <LogOut :size="20" />
-      </button>
+<!-- PATCH 12 : bouton retiré — la déconnexion reste dans le menu hamburger -->
     </header>
     <aside class="sidebar" v-if="showSidebar" :class="{ ouvert: menuOuvert }">
       <div class="brand">

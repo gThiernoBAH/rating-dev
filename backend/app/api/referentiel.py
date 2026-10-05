@@ -7,11 +7,11 @@ from app.core.database import get_db
 from app.core.deps import require_admin
 from app.models.rating import (
     Categorie, Critere, CritereDetail, Departement, Emploi, EmploiProfil,
-    Poste, Profil, ProfilCritere, Salarie, Section, Site,
+    EvaluationLigne, Poste, Profil, ProfilCritere, Salarie, Section, Site,  # PATCH 12
 )
 from app.schemas.common import MessageResponse
 from app.schemas.referentiel import (
-    CritereDetailIn, CritereIn, CritereOut, DepartementOut, EmploiOut,
+    CritereDetailIn, CritereDetailOut, CritereIn, CritereOut, DepartementOut, EmploiOut,
     EmploiProfilsIn, ProfilIn, ProfilOut, SalarieIn, SalarieOut, SectionOut,
     SimpleRef,
 )
@@ -118,7 +118,7 @@ def list_criteres(db: Session = Depends(get_db)):
 
 @router.post("/criteres", response_model=CritereOut, status_code=201)
 def create_critere(p: CritereIn, db: Session = Depends(get_db)):
-    obj = Critere(code=p.code, libelle=p.libelle, actif=p.actif)
+    obj = Critere(code=p.code, libelle=p.libelle, actif=p.actif, editable=p.editable)  # PATCH 12
     db.add(obj); db.flush()
     for d in p.details:
         db.add(CritereDetail(critere_id=obj.id, libelle_descriptif=d.libelle_descriptif,
@@ -156,7 +156,7 @@ def create_profil(p: ProfilIn, db: Session = Depends(get_db)):
 # --- salaries (rattachements, N+1, hors évaluation, email)
 @router.get("/salaries", response_model=list[SalarieOut])
 def list_salaries(db: Session = Depends(get_db)):
-    salaries = db.query(Salarie).order_by(Salarie.matricule).all()
+    salaries = db.query(Salarie).order_by(Salarie.is_admin.desc(), Salarie.matricule)  # PATCH 12 : Admins en tête.all()
     out = []
     for s in salaries:
         n1 = db.query(Salarie).get(s.n1_id) if s.n1_id else None
@@ -170,6 +170,7 @@ def list_salaries(db: Session = Depends(get_db)):
 
 @router.post("/salaries", response_model=SalarieOut, status_code=201)
 def create_salarie(p: SalarieIn, db: Session = Depends(get_db)):
+    verifier_refs_actifs(db, p)   # PATCH 12 (création)
     if db.query(Salarie).filter(Salarie.matricule == p.matricule).first():
         raise HTTPException(409, "Matricule déjà utilisé.")
     obj = Salarie(**p.model_dump())
@@ -180,6 +181,7 @@ def create_salarie(p: SalarieIn, db: Session = Depends(get_db)):
 @router.put("/salaries/{salarie_id}", response_model=SalarieOut)
 def update_salarie(salarie_id: int, p: SalarieIn, db: Session = Depends(get_db),
                    admin: Salarie = Depends(require_admin)):
+    verifier_refs_actifs(db, p)   # PATCH 12 (modification)
     obj = db.query(Salarie).get(salarie_id)
     if not obj:
         raise HTTPException(404, "Introuvable.")
@@ -294,10 +296,13 @@ def update_critere(item_id: int, p: CritereIn, db: Session = Depends(get_db)):
     if not obj:
         raise HTTPException(404, "Introuvable.")
     obj.code, obj.libelle, obj.actif = p.code, p.libelle, p.actif
+    obj.editable = p.editable   # PATCH 12
     db.query(CritereDetail).filter(CritereDetail.critere_id == item_id).delete()
     for d in p.details:
         db.add(CritereDetail(critere_id=item_id, libelle_descriptif=d.libelle_descriptif,
-                             valeur=d.valeur, ordre=d.ordre))
+                             valeur=d.valeur, ordre=d.ordre, sens=d.sens,  # PATCH 12 (maj)
+                             valeur_min=d.valeur_min, valeur_max=d.valeur_max,
+                             actif=d.actif))
     db.commit(); db.refresh(obj)
     return obj
 
@@ -388,3 +393,92 @@ def reset_all_passwords(db: Session = Depends(get_db),
                table_cible="salaries", enregistrement_id=0)
     db.commit()
     return MessageResponse(detail=f"{n} mot(s) de passe réinitialisé(s).")
+
+
+# ================== PATCH 12 : actif référentiels + bibliothèque détails ==================
+
+_REF_ACTIF = {
+    "sites": Site, "departements": Departement, "sections": Section,
+    "emplois": Emploi, "categories": Categorie, "postes": Poste,
+}
+
+
+@router.patch("/{table}/{item_id}/toggle-active", response_model=MessageResponse)
+def toggle_ref_actif(table: str, item_id: int, db: Session = Depends(get_db),
+                      admin: Salarie = Depends(require_admin)):
+    """PATCH 12 — active/désactive un référentiel. Un référentiel désactivé
+    n'est plus pris en compte à la génération des fiches (cascade) et ne peut
+    plus recevoir de nouveaux rattachements salariés."""
+    model = _REF_ACTIF.get(table)
+    if not model:
+        raise HTTPException(422, "Table non supportée pour le toggle actif.")
+    obj = db.query(model).get(item_id)
+    if not obj:
+        raise HTTPException(404, "Introuvable.")
+    obj.actif = not obj.actif
+    log_action(db, auteur_id=admin.id, action="TOGGLE_ACTIF",
+               table_cible=table, enregistrement_id=obj.id)
+    db.commit()
+    etat = "activé" if obj.actif else "désactivé"
+    return MessageResponse(detail=f"{obj.code} {etat}.")
+
+
+def verifier_refs_actifs(db: Session, p) -> None:
+    """PATCH 12 — refuse le rattachement d'un salarié à un référentiel désactivé."""
+    from app.models.rating import Categorie, Departement, Emploi, Poste, Section, Site
+    couples = [(p.site_id, Site, "site"), (p.departement_id, Departement, "département"),
+               (p.section_id, Section, "section"), (p.emploi_id, Emploi, "emploi"),
+               (p.categorie_id, Categorie, "catégorie"), (p.poste_id, Poste, "poste")]
+    for ref_id, model, nom in couples:
+        if ref_id is None:
+            continue
+        o = db.query(model).get(ref_id)
+        if o is None:
+            raise HTTPException(422, f"{nom.capitalize()} introuvable.")
+        if not getattr(o, "actif", True):
+            raise HTTPException(422, f"Le {nom} « {o.libelle} » est désactivé : rattachement impossible.")
+
+
+def _detail_ok(p) -> None:
+    if p.sens == 2 and (p.valeur_min is None or p.valeur_max is None):
+        raise HTTPException(422, "Valeur à intervalle : MIN et MAX obligatoires.")
+
+
+@router.get("/details-criteres", response_model=list[CritereDetailOut])
+def list_details_criteres(db: Session = Depends(get_db)):
+    """PATCH 12 — bibliothèque de tous les détails critères (y compris non assemblés)."""
+    return db.query(CritereDetail).order_by(CritereDetail.ordre, CritereDetail.id).all()
+
+
+@router.post("/details-criteres", response_model=CritereDetailOut, status_code=201)
+def create_detail_critere(p: CritereDetailIn, db: Session = Depends(get_db)):
+    _detail_ok(p)
+    obj = CritereDetail(critere_id=None, libelle_descriptif=p.libelle_descriptif,
+                        valeur=p.valeur, ordre=p.ordre, sens=p.sens,
+                        valeur_min=p.valeur_min, valeur_max=p.valeur_max, actif=p.actif)
+    db.add(obj); db.commit(); db.refresh(obj)
+    return obj
+
+
+@router.put("/details-criteres/{item_id}", response_model=CritereDetailOut)
+def update_detail_critere(item_id: int, p: CritereDetailIn,
+                          db: Session = Depends(get_db)):
+    obj = db.query(CritereDetail).get(item_id)
+    if not obj:
+        raise HTTPException(404, "Introuvable.")
+    _detail_ok(p)
+    obj.libelle_descriptif, obj.valeur, obj.ordre = p.libelle_descriptif, p.valeur, p.ordre
+    obj.sens, obj.valeur_min, obj.valeur_max, obj.actif = p.sens, p.valeur_min, p.valeur_max, p.actif
+    db.commit(); db.refresh(obj)
+    return obj
+
+
+@router.delete("/details-criteres/{item_id}", response_model=MessageResponse)
+def delete_detail_critere(item_id: int, db: Session = Depends(get_db)):
+    obj = db.query(CritereDetail).get(item_id)
+    if not obj:
+        raise HTTPException(404, "Introuvable.")
+    if db.query(EvaluationLigne).filter(EvaluationLigne.critere_detail_id == item_id).first():
+        raise HTTPException(409, "Détail utilisé par des fiches : suppression bloquée.")
+    db.delete(obj); db.commit()
+    return MessageResponse(detail="Supprimé.")

@@ -229,7 +229,8 @@ th.actif .dt-fleche { opacity: 1; }
 .dt-page:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
 .dt-ellipse { padding: 0 4px; }
 .dt-taille select {
-  margin-left: var(--space-2); height: 30px; border: 1px solid var(--color-border);
+  margin-left: var(--space-2); width: 72px; padding: 0 8px;   /* PATCH 12 : le chiffre était avalé */
+  height: 30px; border: 1px solid var(--color-border);
   border-radius: var(--radius-md); background: var(--color-surface); font-family: inherit;
 }
 </style>

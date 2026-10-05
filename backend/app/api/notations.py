@@ -14,7 +14,8 @@ from app.schemas.evaluation import (
     FicheDetail, NotationFiche, NotationLigne, NotationProfil,
 )
 from app.services.evaluations import mon_role
-from app.services.notation import calc_note_globale, calc_rate, calc_valeur, est_divergente
+from app.services.notation import (calc_note_globale, calc_rate, calc_valeur,  # PATCH 12
+                                   est_divergente, note_detail)
 from app.services.params import appreciation
 
 router = APIRouter(prefix="/api/notations", tags=["Notations"])
@@ -58,7 +59,8 @@ def notation(evaluation_id: int, db: Session = Depends(get_db),
             ln, ln1 = par_cle.get((pid, pc.critere_id, "N")), par_cle.get((pid, pc.critere_id, "N+1"))
             d1 = db.query(CritereDetail).get(ln.critere_detail_id) if ln and ln.critere_detail_id else None
             d2 = db.query(CritereDetail).get(ln1.critere_detail_id) if ln1 and ln1.critere_detail_id else None
-            n1, n2 = float(d1.valeur) if d1 else None, float(d2.valeur) if d2 else None
+            n1 = note_detail(d1, ln.valeur_choisie) if d1 else None   # PATCH 12 : /5 normalisé
+            n2 = note_detail(d2, ln1.valeur_choisie) if d2 else None
             coeff = float(pc.coefficient)
             total_coeff += coeff
             if n1 is not None:

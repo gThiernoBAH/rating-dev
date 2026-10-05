@@ -1,4 +1,5 @@
-# 2026-10-02 — schémas du référentiel (M5).
+# 2026-10-05 PATCH 12 — schémas du référentiel (M5) : actif, editable,
+# type valeur (unique/intervalle), nature salarié, bibliothèque détails.
 from datetime import date
 from pydantic import BaseModel, Field
 
@@ -7,6 +8,7 @@ class SimpleRef(BaseModel):
     id: int
     code: str
     libelle: str
+    actif: bool = True                      # PATCH 12
     model_config = {"from_attributes": True}
 
 
@@ -25,15 +27,24 @@ class EmploiOut(SimpleRef):
 
 class CritereDetailIn(BaseModel):
     libelle_descriptif: str = Field(min_length=3, max_length=300)
-    valeur: float = Field(ge=0, le=10)
+    valeur: float = Field(ge=0, le=100)
     ordre: int = 0
+    sens: int = Field(default=1, ge=1, le=2)          # PATCH 12 : 1 unique / 2 intervalle
+    valeur_min: float | None = None                   # PATCH 12
+    valeur_max: float | None = None                   # PATCH 12
+    actif: bool = True                                # PATCH 12
 
 
 class CritereDetailOut(BaseModel):
     id: int
+    critere_id: int | None = None                      # PATCH 12 : null = bibliothèque
     libelle_descriptif: str
     valeur: float
     ordre: int
+    sens: int = 1                                      # PATCH 12
+    valeur_min: float | None = None                    # PATCH 12
+    valeur_max: float | None = None                    # PATCH 12
+    actif: bool = True                                 # PATCH 12
     model_config = {"from_attributes": True}
 
 
@@ -42,6 +53,7 @@ class CritereOut(BaseModel):
     code: str
     libelle: str
     actif: bool
+    editable: bool = False                             # PATCH 12
     details: list[CritereDetailOut] = []
     model_config = {"from_attributes": True}
 
@@ -50,6 +62,7 @@ class CritereIn(BaseModel):
     code: str
     libelle: str
     actif: bool = True
+    editable: bool = False                             # PATCH 12
     details: list[CritereDetailIn] = []
 
 
@@ -92,6 +105,7 @@ class SalarieIn(BaseModel):
     n1_id: int | None = None
     n2_id: int | None = None
     hors_evaluation: bool = False
+    nature: str = "Embauché"                            # PATCH 12
     is_admin: bool = False
     is_active: bool = True
 
