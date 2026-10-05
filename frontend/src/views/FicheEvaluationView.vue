@@ -26,8 +26,6 @@ const estMobile = window.matchMedia('(max-width: 768px)').matches
 const modaleApprob = ref(null) // { decision } pour l'observation N+2
 const observation = ref('')
 const signatures = ref([])   // PATCH 10 — signatures électroniques
-const signatures = ref([])   // PATCH 10 — signatures électroniques
-const signatures = ref([])   // PATCH 10 — signatures électroniques
 
 async function charger() {
   fiche.value = (await api.get('/evaluations/' + route.params.evaluationId)).data
@@ -160,64 +158,6 @@ async function signerMonEtape() {
   } catch (e) { erreur.value = e.response?.data?.detail }
 }
 
-/* PATCH 10 — auto-éval assistée : barre d'avancement de MON étape */
-const totalMonEtape = computed(() => (fiche.value?.profils || []).length)
-const reponduesMonEtape = computed(() => {
-  const etape = etapeCourante.value
-  return (fiche.value?.profils || []).filter(l => etape === 'N' ? l.auto_libelle : l.eval_libelle).length
-})
-const avancement = computed(() => totalMonEtape.value ? Math.round(100 * reponduesMonEtape.value / totalMonEtape.value) : 0)
-const peutSigner = computed(() => {
-  const e = fiche.value?.entete, m = fiche.value?.mon_etape
-  if (!e || !m || m === 'ADMIN') return false
-  if (m === 'N' && e.statut_n === 'Clôturée') return !signatures.value.some(s => s.etape === 'N')
-  if (m === 'N+1' && e.statut_n1 === 'Clôturée') return !signatures.value.some(s => s.etape === 'N+1')
-  if (m === 'N+2' && e.statut_global === 'Approuvé') return !signatures.value.some(s => s.etape === 'N+2')
-  return false
-})
-async function signerMonEtape() {
-  const ok = await confirm({
-    title: 'Signer électroniquement',
-    message: 'Je certifie avoir pris connaissance de cette fiche et appose ma signature électronique (horodatée, empreinte SHA-256).',
-    confirmLabel: 'SIGNER',
-  })
-  if (!ok) return
-  try {
-    await api.post('/evaluations/' + route.params.evaluationId + '/signer')
-    await charger()
-    message.value = 'Étape signée électroniquement.'
-  } catch (e) { erreur.value = e.response?.data?.detail }
-}
-
-/* PATCH 10 — auto-éval assistée : barre d'avancement de MON étape */
-const totalMonEtape = computed(() => (fiche.value?.profils || []).length)
-const reponduesMonEtape = computed(() => {
-  const etape = etapeCourante.value
-  return (fiche.value?.profils || []).filter(l => etape === 'N' ? l.auto_libelle : l.eval_libelle).length
-})
-const avancement = computed(() => totalMonEtape.value ? Math.round(100 * reponduesMonEtape.value / totalMonEtape.value) : 0)
-const peutSigner = computed(() => {
-  const e = fiche.value?.entete, m = fiche.value?.mon_etape
-  if (!e || !m || m === 'ADMIN') return false
-  if (m === 'N' && e.statut_n === 'Clôturée') return !signatures.value.some(s => s.etape === 'N')
-  if (m === 'N+1' && e.statut_n1 === 'Clôturée') return !signatures.value.some(s => s.etape === 'N+1')
-  if (m === 'N+2' && e.statut_global === 'Approuvé') return !signatures.value.some(s => s.etape === 'N+2')
-  return false
-})
-async function signerMonEtape() {
-  const ok = await confirm({
-    title: 'Signer électroniquement',
-    message: 'Je certifie avoir pris connaissance de cette fiche et appose ma signature électronique (horodatée, empreinte SHA-256).',
-    confirmLabel: 'SIGNER',
-  })
-  if (!ok) return
-  try {
-    await api.post('/evaluations/' + route.params.evaluationId + '/signer')
-    await charger()
-    message.value = 'Étape signée électroniquement.'
-  } catch (e) { erreur.value = e.response?.data?.detail }
-}
-
 const COLONNES = [
   { key: 'numero', label: 'N°', align: 'center', searchable: false },
   { key: 'critere_libelle', label: 'Critère' },
@@ -246,36 +186,6 @@ const COLONNES = [
         <span class="badge-warn">N+1 : {{ fiche.entete.statut_n1 }}</span>
         <span class="badge-warn">N+2 : {{ fiche.entete.statut_n2 }}</span>
         <span class="badge-warn">GLOBAL : {{ fiche.entete.statut_global }}</span>
-      </div>
-      <!-- PATCH 10 — barre d'avancement + signatures -->
-      <div v-if="fiche.mon_etape && fiche.mon_etape !== 'ADMIN'" style="margin-top:8px;">
-        <div style="font-size:11px; font-weight:700; color:var(--color-text-muted);">
-          AVANCEMENT {{ fiche.mon_etape }} : {{ avancement }} % ({{ reponduesMonEtape }}/{{ totalMonEtape }})
-        </div>
-        <div style="height:8px; background:var(--color-border); border-radius:4px; overflow:hidden;">
-          <div :style="{ width: avancement + '%' }" style="height:100%; background:var(--color-vert); transition:width .3s;"></div>
-        </div>
-      </div>
-      <div v-if="signatures.length || peutSigner" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
-        <span v-for="s in signatures" :key="s.id" class="badge-warn" :title="'Empreinte SHA-256 : ' + s.empreinte">
-          SIGNÉ {{ s.etape }} — {{ s.auteur }} le {{ s.date }}
-        </span>
-        <button v-if="peutSigner" class="btn" title="Apposer ma signature électronique (horodatée + empreinte)" @click="signerMonEtape">SIGNER MON ÉTAPE</button>
-      </div>
-      <!-- PATCH 10 — barre d'avancement + signatures -->
-      <div v-if="fiche.mon_etape && fiche.mon_etape !== 'ADMIN'" style="margin-top:8px;">
-        <div style="font-size:11px; font-weight:700; color:var(--color-text-muted);">
-          AVANCEMENT {{ fiche.mon_etape }} : {{ avancement }} % ({{ reponduesMonEtape }}/{{ totalMonEtape }})
-        </div>
-        <div style="height:8px; background:var(--color-border); border-radius:4px; overflow:hidden;">
-          <div :style="{ width: avancement + '%' }" style="height:100%; background:var(--color-vert); transition:width .3s;"></div>
-        </div>
-      </div>
-      <div v-if="signatures.length || peutSigner" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
-        <span v-for="s in signatures" :key="s.id" class="badge-warn" :title="'Empreinte SHA-256 : ' + s.empreinte">
-          SIGNÉ {{ s.etape }} — {{ s.auteur }} le {{ s.date }}
-        </span>
-        <button v-if="peutSigner" class="btn" title="Apposer ma signature électronique (horodatée + empreinte)" @click="signerMonEtape">SIGNER MON ÉTAPE</button>
       </div>
       <!-- PATCH 10 — barre d'avancement + signatures -->
       <div v-if="fiche.mon_etape && fiche.mon_etape !== 'ADMIN'" style="margin-top:8px;">

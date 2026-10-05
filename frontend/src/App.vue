@@ -21,20 +21,6 @@ function basculerTheme() {
   localStorage.setItem('themeSombre', themeSombre.value ? '1' : '0')
   document.documentElement.dataset.theme = themeSombre.value ? 'dark' : ''
 }
-// PATCH 10 — mode sombre (préférence persistée)
-const themeSombre = ref(localStorage.getItem('themeSombre') === '1')
-function basculerTheme() {
-  themeSombre.value = !themeSombre.value
-  localStorage.setItem('themeSombre', themeSombre.value ? '1' : '0')
-  document.documentElement.dataset.theme = themeSombre.value ? 'dark' : ''
-}
-// PATCH 10 — mode sombre (préférence persistée)
-const themeSombre = ref(localStorage.getItem('themeSombre') === '1')
-function basculerTheme() {
-  themeSombre.value = !themeSombre.value
-  localStorage.setItem('themeSombre', themeSombre.value ? '1' : '0')
-  document.documentElement.dataset.theme = themeSombre.value ? 'dark' : ''
-}
 const nonLues = ref(0)
 const menuOuvert = ref(false)
 // PATCH 8 — detection reactive du mobile (menu réduit, routes Admin bloquées)
@@ -68,10 +54,6 @@ const liens = computed(() => {
   l.push({ to: '/navigation', label: 'NAVIGATION', key: 'navigation' })
   l.push({ to: '/checkins', label: 'CHECK-INS', key: 'checkins' })        // PATCH 10
   l.push({ to: '/objectifs', label: 'OBJECTIFS', key: 'objectifs' })
-  l.push({ to: '/checkins', label: 'CHECK-INS', key: 'checkins' })        // PATCH 10
-  l.push({ to: '/objectifs', label: 'OBJECTIFS', key: 'objectifs' })
-  l.push({ to: '/checkins', label: 'CHECK-INS', key: 'checkins' })        // PATCH 10
-  l.push({ to: '/objectifs', label: 'OBJECTIFS', key: 'objectifs' })
   if (auth.estN1 || auth.estN2 || auth.isAdmin) {
     const camp = localStorage.getItem('campagneActive')
     if (camp) l.push({ to: '/evaluations/' + camp, label: 'EVALUATIONS', key: 'evaluations' })
@@ -80,8 +62,6 @@ const liens = computed(() => {
     l.push({ to: '/referentiel', label: 'PARAMETRAGE', key: 'referentiel' })
     l.push({ to: '/campagnes', label: 'CAMPAGNES', key: 'campagnes' })
     l.push({ to: '/dashboard', label: 'TABLEAUX DE BORD', key: 'dashboard' })
-    l.push({ to: '/benchmark', label: 'BENCHMARK', key: 'benchmark' })
-    l.push({ to: '/benchmark', label: 'BENCHMARK', key: 'benchmark' })
     l.push({ to: '/benchmark', label: 'BENCHMARK', key: 'benchmark' })
   }
   return l
@@ -107,20 +87,12 @@ function deconnexion() {
 <template>
   <div class="app">
     <TourGuide v-if="showSidebar" />   <!-- PATCH 10 : onboarding -->
-    <TourGuide v-if="showSidebar" />   <!-- PATCH 10 : onboarding -->
-    <TourGuide v-if="showSidebar" />   <!-- PATCH 10 : onboarding -->
     <div v-if="menuOuvert && showSidebar" class="overlay" @click="menuOuvert = false"></div>
     <header v-if="showSidebar" class="topbar">
       <button class="hamburger" title="Ouvrir le menu" @click="menuOuvert = true">
         <Menu :size="22" />
       </button>
       <div class="topbar-brand">EVALPOINT</div>
-      <button class="topbar-toggle" :title="themeSombre ? 'Passer en mode clair' : 'Passer en mode sombre'" @click="basculerTheme">
-        <Sun v-if="themeSombre" :size="18" /><Moon v-else :size="18" />
-      </button>
-      <button class="topbar-toggle" :title="themeSombre ? 'Passer en mode clair' : 'Passer en mode sombre'" @click="basculerTheme">
-        <Sun v-if="themeSombre" :size="18" /><Moon v-else :size="18" />
-      </button>
       <button class="topbar-toggle" :title="themeSombre ? 'Passer en mode clair' : 'Passer en mode sombre'" @click="basculerTheme">
         <Sun v-if="themeSombre" :size="18" /><Moon v-else :size="18" />
       </button>
@@ -279,7 +251,6 @@ label { font-size: 12px; font-weight: 600; display: block; margin-bottom: var(--
 .topbar { display: none; }
 .hamburger, .sidebar-close { display: none; }
 .topbar-logout { display: none; margin-left: auto; }
-
 
 @media (max-width: 768px) {
   .app { flex-direction: column; }
