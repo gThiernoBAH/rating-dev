@@ -3,7 +3,7 @@
      modale (plus de window.confirm), onglets soulignés façon vusine. -->
 <script setup>
 import { onMounted, ref, computed } from 'vue'
-import { Pencil, Trash2, Plus, KeyRound } from 'lucide-vue-next'
+import { Pencil, Trash2, Plus } from 'lucide-vue-next'
 import api from '../api/client'
 import DataTable from '../components/DataTable.vue'
 import { useConfirm } from '../composables/useConfirm'
@@ -49,7 +49,7 @@ function ajouter(t) {
   else if (t === 'profils') forme.value = { t, code: '', libelle: '', criteres: [] }
   else if (t === 'salaries') forme.value = { t, matricule: '', nom: '', prenoms: '', site_id: null,
     departement_id: null, section_id: null, emploi_id: null, categorie_id: null, poste_id: null,
-    date_embauche: '', email: '', n1_id: null, n2_id: null, hors_evaluation: false,
+    date_embauche: '', email: '', n1_id: null, hors_evaluation: false,
     is_admin: false, is_active: true }
 }
 
@@ -104,8 +104,7 @@ async function enregistrer() {
         section_id: f.section_id || null, emploi_id: f.emploi_id || null,
         categorie_id: f.categorie_id || null, poste_id: f.poste_id || null,
         date_embauche: f.date_embauche || null, email: f.email || null,
-        n1_id: f.n1_id || null, n2_id: f.n2_id || null,
-        hors_evaluation: !!f.hors_evaluation,
+        n1_id: f.n1_id || null, hors_evaluation: !!f.hors_evaluation,
         is_admin: !!f.is_admin, is_active: f.is_active !== false }
       if (modeEdition.value) await api.put('/referentiel/salaries/' + f.id, corps)
       else await api.post('/referentiel/salaries', corps)
@@ -130,34 +129,6 @@ async function supprimer(t, item) {
     message.value = 'Supprimé.'
     await charger()
   } catch (e) { erreur.value = (e.response && e.response.data && e.response.data.detail) || 'Suppression impossible.' }
-}
-
-async function reinitialiserMdp(s) {
-  const ok = await confirm({
-    title: 'Réinitialiser le mot de passe',
-    message: `Vider le mot de passe de ${s.matricule} — ${nomCourt(s)} ? À sa prochaine connexion, il devra en créer un nouveau.`,
-    danger: true, confirmLabel: 'Réinitialiser',
-  })
-  if (!ok) return
-  try {
-    await api.post('/referentiel/salaries/' + s.id + '/reset-password')
-    message.value = 'Mot de passe réinitialisé.'
-    await charger()
-  } catch (e) { erreur.value = e.response?.data?.detail || 'Action impossible.' }
-}
-
-async function reinitialiserTous() {
-  const ok = await confirm({
-    title: 'Réinitialiser TOUS les mots de passe',
-    message: 'Vider le mot de passe de tous les salariés (sauf Admins) ? Chacun devra créer le sien à sa prochaine connexion.',
-    danger: true, confirmLabel: 'Tout réinitialiser',
-  })
-  if (!ok) return
-  try {
-    const r = await api.post('/referentiel/salaries/reset-passwords')
-    message.value = r.data.detail
-    await charger()
-  } catch (e) { erreur.value = e.response?.data?.detail || 'Action impossible.' }
 }
 
 function ajouterDetail() { forme.value.details.push({ libelle_descriptif: '', valeur: 1, ordre: 0 }) }
@@ -187,8 +158,8 @@ const colonnes = computed(() => {
   if (t === 'salaries') return [
     { key: 'matricule', label: 'Matricule' },
     { key: 'nom', label: 'Nom', format: (v, r) => nomCourt(r) },
+    { key: 'email', label: 'Email' },
     { key: 'n1_nom', label: 'N+1' },
-    { key: 'n2_nom', label: 'N+2' },
     { key: 'hors_evaluation', label: 'Hors éval.', format: v => (v ? 'Oui' : 'Non'), align: 'center' },
     { key: 'actif_aff', label: 'Actif', format: v => v, align: 'center', searchable: false },
     ACTIONS,
@@ -275,9 +246,6 @@ function cleLigne(r, i) { return r.id ?? i }
       <template #filtres>
         <button class="btn" title="Ajouter un nouvel enregistrement dans cet onglet"
           @click="ajouter(onglet)"><Plus :size="14" /> AJOUTER</button>
-        <button v-if="onglet === 'salaries'" class="btn ghost" style="margin-left:6px"
-          title="Vider tous les mots de passe (sauf Admins) : chacun créera le sien à sa prochaine connexion"
-          @click="reinitialiserTous"><KeyRound :size="14" /> RÉINIT. TOUS LES MDP</button>
       </template>
 
       <!-- colonnes spéciales -->
@@ -290,9 +258,6 @@ function cleLigne(r, i) { return r.id ?? i }
         </span>
       </template>
       <template #cell-actions="{ row }">
-        <button v-if="onglet === 'salaries'" class="icon-btn"
-          :title="'Réinitialiser le mot de passe de ' + row.matricule + ' (il en créera un nouveau à sa prochaine connexion)'"
-          @click="reinitialiserMdp(row)"><KeyRound :size="15" /></button>
         <button class="icon-btn" style="margin-left:6px"
           :title="'Modifier — ' + (row.code || row.matricule || row.id)"
           @click="modifier(onglet, row)"><Pencil :size="15" /></button>
@@ -412,9 +377,6 @@ function cleLigne(r, i) { return r.id ?? i }
           <div class="field"><label>N+1</label>
             <select v-model="forme.n1_id" title="Responsable direct (N+1) : évaluera la fiche après l'auto-évaluation"><option :value="null">—</option>
               <option v-for="s in donnees.salaries" :key="s.id" :value="s.id">{{ s.matricule }} — {{ nomCourt(s) }}</option></select></div>
-          <div class="field"><label>N+2</label>
-            <select v-model="forme.n2_id" title="N+2 explicite : approuvera la fiche après l'évaluation N+1 (sinon déduit du N+1 du N+1)"><option :value="null">—</option>
-              <option v-for="s in donnees.salaries" :key="s.id" :value="s.id">{{ s.matricule }} — {{ nomCourt(s) }}</option></select></div>
           <div class="field"><label>HORS ÉVALUATION</label>
             <input type="checkbox" v-model="forme.hors_evaluation" style="width:auto" title="Exclure ce salarié de la génération des fiches" /></div>
           <div class="field"><label>ADMINISTRATEUR</label>
@@ -425,9 +387,9 @@ function cleLigne(r, i) { return r.id ?? i }
               title="Compte actif : le salarié peut se connecter. Décoché : connexion refusée (fiches existantes conservées)." /></div>
         </template>
 
-        <div style="display:flex; gap:8px; margin-top:14px; justify-content:flex-end">
-          <button class="btn ghost" title="Annuler sans enregistrer" @click="fermer">ANNULER</button>
+        <div style="display:flex; gap:8px; margin-top:14px">
           <button class="btn" title="Enregistrer et fermer" @click="enregistrer">ENREGISTRER</button>
+          <button class="btn ghost" title="Annuler sans enregistrer" @click="fermer">ANNULER</button>
         </div>
       </div>
     </div>

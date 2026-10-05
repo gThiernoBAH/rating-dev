@@ -23,9 +23,6 @@ def _permis(db, user, salarie_id: int) -> bool:
         return True
     directs = {s.id for s in collaborateurs_directs(db, user.id)}
     indirects = {s.id for s in collaborateurs_indirects(db, user.id)}
-    cible = db.query(Salarie).get(salarie_id)
-    if cible and cible.n2_id == user.id:
-        return True
     return salarie_id in (directs | indirects)
 
 

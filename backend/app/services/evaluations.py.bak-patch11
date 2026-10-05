@@ -25,11 +25,8 @@ def mon_role(db: Session, evaluation: Evaluation, user: Salarie) -> str | None:
     salarie = db.query(Salarie).get(evaluation.salarie_id)
     if salarie and salarie.n1_id == user.id:
         return "N+1"
-    if salarie and salarie.n2_id == user.id:
-        return "N+2"
-    if salarie and salarie.n1_id:
-        n1 = db.query(Salarie).get(salarie.n1_id)
-        if n1 and n1.n1_id == user.id:
+    if salarie and salarie.n1:
+        if salarie.n1.n1_id == user.id:
             return "N+2"
     return None
 

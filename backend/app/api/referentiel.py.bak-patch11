@@ -160,10 +160,8 @@ def list_salaries(db: Session = Depends(get_db)):
     out = []
     for s in salaries:
         n1 = db.query(Salarie).get(s.n1_id) if s.n1_id else None
-        n2 = db.query(Salarie).get(s.n2_id) if s.n2_id else None
         d = SalarieOut.model_validate(s)
         d.n1_nom = n1.full_name if n1 else None
-        d.n2_nom = n2.full_name if n2 else None
         out.append(d)
     return out
 
@@ -185,8 +183,6 @@ def update_salarie(salarie_id: int, p: SalarieIn, db: Session = Depends(get_db),
         raise HTTPException(404, "Introuvable.")
     if salarie_id == p.n1_id:
         raise HTTPException(422, "Un salarié ne peut être son propre N+1.")
-    if salarie_id == p.n2_id:
-        raise HTTPException(422, "Un salarié ne peut être son propre N+2.")
     if salarie_id == admin.id:
         # Un Admin ne peut ni se rétrograder ni se désactiver lui-même.
         if obj.is_admin and not p.is_admin:
@@ -354,37 +350,3 @@ def toggle_active(salarie_id: int, db: Session = Depends(get_db),
     db.commit()
     etat = "activé" if obj.is_active else "désactivé"
     return MessageResponse(detail=f"Compte {obj.matricule} {etat}.")
-
-
-# ================== PATCH 9 : réinitialisation des mots de passe ==================
-@router.post("/salaries/{salarie_id}/reset-password", response_model=MessageResponse)
-def reset_password(salarie_id: int, db: Session = Depends(get_db),
-                   admin: Salarie = Depends(require_admin)):
-    """Oubli de mot de passe : l'Admin vide le hash ; le salarié recrée son
-    mot de passe à sa prochaine connexion (parcours 1re connexion)."""
-    obj = db.query(Salarie).get(salarie_id)
-    if not obj:
-        raise HTTPException(404, "Introuvable.")
-    obj.password_hash = None
-    obj.must_change_password = True
-    log_action(db, auteur_id=admin.id, action="RESET_PASSWORD",
-               table_cible="salaries", enregistrement_id=obj.id)
-    db.commit()
-    return MessageResponse(detail=f"Mot de passe de {obj.matricule} réinitialisé : "
-                                   f"il devra en créer un nouveau à sa prochaine connexion.")
-
-
-@router.post("/salaries/reset-passwords", response_model=MessageResponse)
-def reset_all_passwords(db: Session = Depends(get_db),
-                        admin: Salarie = Depends(require_admin)):
-    """Réinitialisation globale (sauf comptes Admin) : chaque salarié recrée
-    son mot de passe à sa prochaine connexion."""
-    n = 0
-    for s in db.query(Salarie).filter(Salarie.is_admin.is_(False)).all():
-        s.password_hash = None
-        s.must_change_password = True
-        n += 1
-    log_action(db, auteur_id=admin.id, action="RESET_ALL_PASSWORDS",
-               table_cible="salaries", enregistrement_id=0)
-    db.commit()
-    return MessageResponse(detail=f"{n} mot(s) de passe réinitialisé(s).")

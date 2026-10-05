@@ -10,8 +10,7 @@ from app.services.params import get_param
 
 
 def _cutoff_date(db: Session, date_cloture: date | None) -> date | None:
-    # PATCH 9 — 6 mois d'ancienneté minimum pour être évalué
-    mois = int(get_param(db, "cutoff_anciennete_mois", "6"))
+    mois = int(get_param(db, "cutoff_anciennete_mois", "3"))
     if not date_cloture:
         return None
     # embauche < cutoff -> embauché depuis < N mois -> non évalué cette campagne

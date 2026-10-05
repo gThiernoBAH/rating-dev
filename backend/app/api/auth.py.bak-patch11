@@ -42,14 +42,12 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         )
 
     reset_failures(matricule)
-    # PATCH 9 — création de mot de passe UNIQUEMENT si le hash est vide.
-    # (Avant : le flag must_change_password posé à l'import forçait la
-    #  création même avec un mot de passe valide, et masquait la sidebar.)
-    user.must_change_password = premiere_connexion
-    db.commit()
+    if premiere_connexion:
+        user.must_change_password = True
+        db.commit()
     return TokenResponse(
         access_token=create_access_token(user.matricule),
-        must_change_password=premiere_connexion,
+        must_change_password=user.must_change_password,
     )
 
 

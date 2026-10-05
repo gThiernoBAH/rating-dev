@@ -90,7 +90,6 @@ class SalarieIn(BaseModel):
     date_embauche: date | None = None
     email: str | None = None
     n1_id: int | None = None
-    n2_id: int | None = None
     hors_evaluation: bool = False
     is_admin: bool = False
     is_active: bool = True
@@ -99,5 +98,4 @@ class SalarieIn(BaseModel):
 class SalarieOut(SalarieIn):
     id: int
     n1_nom: str | None = None
-    n2_nom: str | None = None
     model_config = {"from_attributes": True}

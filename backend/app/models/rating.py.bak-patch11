@@ -124,7 +124,6 @@ class Salarie(Base):
     date_embauche: Mapped[date | None] = mapped_column(Date, nullable=True)
     email: Mapped[str | None] = mapped_column(VARCHAR(200), nullable=True)
     n1_id: Mapped[int | None] = mapped_column(ForeignKey("salaries.id"), nullable=True)
-    n2_id: Mapped[int | None] = mapped_column(ForeignKey("salaries.id"), nullable=True)  # PATCH 9
     hors_evaluation: Mapped[bool] = mapped_column(Boolean, default=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -276,3 +275,99 @@ class ObjectifKr(Base):
     avancement: Mapped[int] = mapped_column(SmallInteger, default=0)
 
 
+# ================== PATCH 10 : roadmap PRO/PREMIUM ==================
+
+class Signature(Base):
+    """PATCH 10 — signature électronique N/N+1/N+2 (empreinte SHA-256)."""
+    __tablename__ = "signatures"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    evaluation_id: Mapped[int] = mapped_column(ForeignKey("evaluations.id"))
+    etape: Mapped[str] = mapped_column(VARCHAR(4))          # N / N+1 / N+2
+    auteur_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    empreinte: Mapped[str] = mapped_column(VARCHAR(64))
+    horodatage: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now)
+    __table_args__ = (UniqueConstraint("evaluation_id", "etape"),)
+
+class Checkin(Base):
+    """PATCH 10 — check-in trimestriel N/N+1 (points forts / axes)."""
+    __tablename__ = "checkins"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    salarie_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    auteur_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    trimestre: Mapped[int] = mapped_column(SmallInteger)      # 1..4
+    annee: Mapped[int] = mapped_column(Integer)
+    points_forts: Mapped[str] = mapped_column(Text)
+    axes_amelioration: Mapped[str] = mapped_column(Text)
+    decision: Mapped[str] = mapped_column(VARCHAR(20), default="En cours")
+    date_reunion: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now)
+
+class Objectif(Base):
+    """PATCH 10 — objectif OKR trimestriel."""
+    __tablename__ = "objectifs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    salarie_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    auteur_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    titre: Mapped[str] = mapped_column(VARCHAR(200))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    trimestre: Mapped[int] = mapped_column(SmallInteger)
+    annee: Mapped[int] = mapped_column(Integer)
+    statut: Mapped[str] = mapped_column(VARCHAR(20), default="En cours")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now)
+
+class ObjectifKr(Base):
+    """PATCH 10 — résultat clé d'un objectif (avancement 0-100 %)."""
+    __tablename__ = "objectif_krs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    objectif_id: Mapped[int] = mapped_column(ForeignKey("objectifs.id"))
+    libelle: Mapped[str] = mapped_column(VARCHAR(200))
+    avancement: Mapped[int] = mapped_column(SmallInteger, default=0)
+
+
+# ================== PATCH 10 : roadmap PRO/PREMIUM ==================
+
+class Signature(Base):
+    """PATCH 10 — signature électronique N/N+1/N+2 (empreinte SHA-256)."""
+    __tablename__ = "signatures"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    evaluation_id: Mapped[int] = mapped_column(ForeignKey("evaluations.id"))
+    etape: Mapped[str] = mapped_column(VARCHAR(4))          # N / N+1 / N+2
+    auteur_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    empreinte: Mapped[str] = mapped_column(VARCHAR(64))
+    horodatage: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now)
+    __table_args__ = (UniqueConstraint("evaluation_id", "etape"),)
+
+class Checkin(Base):
+    """PATCH 10 — check-in trimestriel N/N+1 (points forts / axes)."""
+    __tablename__ = "checkins"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    salarie_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    auteur_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    trimestre: Mapped[int] = mapped_column(SmallInteger)      # 1..4
+    annee: Mapped[int] = mapped_column(Integer)
+    points_forts: Mapped[str] = mapped_column(Text)
+    axes_amelioration: Mapped[str] = mapped_column(Text)
+    decision: Mapped[str] = mapped_column(VARCHAR(20), default="En cours")
+    date_reunion: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now)
+
+class Objectif(Base):
+    """PATCH 10 — objectif OKR trimestriel."""
+    __tablename__ = "objectifs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    salarie_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    auteur_id: Mapped[int] = mapped_column(ForeignKey("salaries.id"))
+    titre: Mapped[str] = mapped_column(VARCHAR(200))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    trimestre: Mapped[int] = mapped_column(SmallInteger)
+    annee: Mapped[int] = mapped_column(Integer)
+    statut: Mapped[str] = mapped_column(VARCHAR(20), default="En cours")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now)
+
+class ObjectifKr(Base):
+    """PATCH 10 — résultat clé d'un objectif (avancement 0-100 %)."""
+    __tablename__ = "objectif_krs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    objectif_id: Mapped[int] = mapped_column(ForeignKey("objectifs.id"))
+    libelle: Mapped[str] = mapped_column(VARCHAR(200))
+    avancement: Mapped[int] = mapped_column(SmallInteger, default=0)
