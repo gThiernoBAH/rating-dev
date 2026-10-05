@@ -66,14 +66,14 @@ const maxBench = () => Math.max(...benchmark.value.map(b => b.moyenne || 0), 5)
 <template>
   <div>
     <div class="barre">
-      <select v-model="salarieId" @change="afficher" class="sel-large"
-        title="Salarié affiché (vous par défaut ; managers : votre périmètre)">
-        <option v-for="s in salariesAffiches" :key="s.id" :value="s.id">{{ s.matricule }} – {{ s.nom }}</option>   <!-- PATCH 12 -->
-      </select>
-      <select v-model="filtreSection" class="sel-large" @change="surFiltreSection"   <!-- PATCH 12 -->
+      <select v-model="filtreSection" class="sel-large" @change="surFiltreSection"
         title="Filtrer par section (sections de votre périmètre)">
         <option value="">— Toutes les sections —</option>
         <option v-for="sc in sections" :key="sc.id" :value="sc.id">{{ sc.libelle }}</option>
+      </select>
+      <select v-model="salarieId" @change="afficher" class="sel-large"
+        title="Salarié affiché (vous par défaut ; managers : votre périmètre)">
+        <option v-for="s in salariesAffiches" :key="s.id" :value="s.id">{{ s.matricule }} – {{ s.nom }}</option>   <!-- PATCH 12 -->
       </select>
       <div class="tabs" style="margin:0">
         <div class="tab" :class="{ active: mode === 'GRAPHE' }" title="Vue graphique par critère" @click="mode = 'GRAPHE'">GRAPHE</div>

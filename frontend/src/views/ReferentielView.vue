@@ -335,7 +335,7 @@ function cleLigne(r, i) { return r.id ?? i }
     <div v-if="erreur && !forme" class="error">{{ erreur }}</div>
 
     <DataTable :columns="colonnes" :rows="lignes" :row-key="cleLigne"
-      :default-sort="onglet === 'salaries' ? { key: 'admin_tri', dir: 1 } : null"   <!-- PATCH 12 : Admins en tête -->
+      :default-sort="onglet === 'salaries' ? { key: 'admin_tri', dir: 1 } : null"
       :search-placeholder="`Rechercher un ${LIBELLES[onglet].toLowerCase().replace(/s$/, '')}…`">
       <template #filtres>
         <button class="btn" title="Ajouter un nouvel enregistrement dans cet onglet"
@@ -353,7 +353,7 @@ function cleLigne(r, i) { return r.id ?? i }
         <span v-if="onglet === 'salaries'" class="badge-statut" :class="row.is_active ? 'statut-vert' : 'statut-rouge'">
           {{ row.is_active ? 'Actif' : 'Inactif' }}
         </span>
-        <button v-else class="badge-statut" :class="row.actif !== false ? 'statut-vert' : 'statut-rouge'"   <!-- PATCH 12 -->
+        <button v-else class="badge-statut" :class="row.actif !== false ? 'statut-vert' : 'statut-rouge'"
           :title="row.actif !== false ? 'Désactiver ce référentiel : plus pris en compte à la génération des fiches' : 'Réactiver ce référentiel'"
           @click="basculerActif(onglet, row)">{{ row.actif !== false ? 'Actif' : 'Inactif' }}</button>
       </template>
@@ -425,13 +425,13 @@ function cleLigne(r, i) { return r.id ?? i }
           <div class="field"><label>ACTIF</label><input type="checkbox" v-model="forme.actif" style="width:auto" title="Critère actif (utilisable dans les profils)" /></div>
           <div class="field"><label>EDITABLE (« A REMPLIR »)</label>   <!-- PATCH 12 -->
             <input type="checkbox" v-model="forme.editable" style="width:auto"
-              title="Critère éditable : le libellé est pré-rempli avec les objectifs de la campagne précédente, le salarié peut l\'ajuster à l\'auto-évaluation" /></div>
+              title="Critère éditable : le libellé est pré-rempli avec les objectifs de la campagne précédente, le salarié peut l'ajuster à l'auto-évaluation" /></div>
           <label>DETAILS (libellé affiché dans le QCM + valeur cachée /5)</label>
           <div class="lignes-edit">
             <div v-for="(d, i) in forme.details" :key="i" class="ligne-edit">
               <input v-model="d.libelle_descriptif" placeholder="Libellé du détail" style="flex:1"
                  title="Texte proposé à la case dans le QCM" />
-              <select v-model.number="d.sens" style="width:104px"   <!-- PATCH 12 -->
+              <select v-model.number="d.sens" style="width:104px"
                 title="Type de valeur : unique (un chiffre) ou intervalle (min-max, ajustable par étoiles)">
                 <option :value="1">Unique</option><option :value="2">Intervalle</option></select>
               <template v-if="Number(d.sens) === 2">
@@ -444,7 +444,7 @@ function cleLigne(r, i) { return r.id ?? i }
               <button class="btn danger small" type="button" title="Retirer ce détail du critère" @click="forme.details.splice(i, 1)">✕</button>
             </div>
             <button class="btn ghost small" type="button" title="Ajouter une ligne de détail au QCM" @click="ajouterDetail">+ Ajouter un détail</button>
-            <select v-if="(donnees.details_criteres || []).some(x => !x.critere_id)"   <!-- PATCH 12 : bibliothèque -->
+            <select v-if="(donnees.details_criteres || []).some(x => !x.critere_id)"
               style="margin-top:6px" title="Ajouter un détail existant depuis la bibliothèque Détails Critères"
               @change="ajouterDetailBiblio">
               <option value="">+ Depuis la bibliothèque…</option>

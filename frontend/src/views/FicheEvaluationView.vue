@@ -102,7 +102,7 @@ async function cloturer() {
   const libelle = etape === 'N' ? 'mon auto-évaluation' : 'mon évaluation N+1'
   const ok = await confirm({
     title: 'Clôturer ' + libelle,
-    message: 'Clôturer définitivement cette étape ? Action irréversible (seul l\'Admin peut déverrouiller, avec justification).',
+    message: 'Clôturer définitivement cette étape ? Action irréversible (seul l'Admin peut déverrouiller, avec justification).',
     danger: true, confirmLabel: 'Clôturer',
   })
   if (!ok) return
@@ -310,7 +310,7 @@ const COLONNES = [
         <p class="qcm-consigne">Cochez la description qui correspond le mieux à vos aptitudes.
            Il n'y a pas de bonne ou mauvaise réponse.</p>
         <!-- PATCH 12 : libellé editable (objectif « A REMPLIR ») -->
-        <div v-if="qcm.etape === \'N\' && qcm.ligne.editable" class="qcm-libelle-edit">
+        <div v-if="qcm.etape === 'N' && qcm.ligne.editable" class="qcm-libelle-edit">
           <label>LIBELLÉ DU CRITÈRE (à renseigner)</label>
           <input v-model="reponse.libelle"
             title="Libellé de votre objectif — pré-rempli depuis la campagne précédente si disponible" />

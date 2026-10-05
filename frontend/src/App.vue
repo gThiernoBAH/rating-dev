@@ -54,10 +54,6 @@ const liens = computed(() => {
   l.push({ to: '/navigation', label: 'NAVIGATION', key: 'navigation' })
   l.push({ to: '/checkins', label: 'CHECK-INS', key: 'checkins' })        // PATCH 10
   l.push({ to: '/objectifs', label: 'OBJECTIFS', key: 'objectifs' })
-  if ((auth.estN1 || auth.estN2 || auth.isAdmin) && !estMobile.value) {   // PATCH 12 : masqué mobile (via MON ESPACE)
-    const camp = localStorage.getItem('campagneActive')
-    if (camp) l.push({ to: '/evaluations/' + camp, label: 'EVALUATIONS', key: 'evaluations' })
-  }
   if (auth.isAdmin && !estMobile.value) {
     l.push({ to: '/referentiel', label: 'PARAMETRAGE', key: 'referentiel' })
     l.push({ to: '/campagnes', label: 'CAMPAGNES', key: 'campagnes' })
