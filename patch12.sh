@@ -1027,8 +1027,7 @@ sub(p, r"(<div class=\"field\"><label>ACTIF</label><input type=\"checkbox\" v-mo
     r'              title="Critère éditable : le libellé est pré-rempli avec les objectifs de la campagne précédente, le salarié peut l\'ajuster à l\'auto-évaluation" /></div>',
     mk='v-model="forme.editable"', regex=True)
 # formulaire critères : type valeur par détail
-sub(p, r"<input v-model=\"d\.libelle_descriptif\" placeholder=\"Libellé du détail\"\s*\n"
-        r"\s*title=\"Texte proposé à la case dans le QCM\" />\s*\n"
+sub(p, r"<input v-model=\"d\.libelle_descriptif\" placeholder=\"Libellé du détail\" title=\"Texte proposé à la case dans le QCM\" />\s*\n"
         r"\s*<input v-model\.number=\"d\.valeur\" type=\"number\" step=\"0\.5\" style=\"width:80px\" title=\"Valeur cachée du détail \(contribute au score /5\)\" />",
     '<input v-model="d.libelle_descriptif" placeholder="Libellé du détail" style="flex:1"\n'
     '                 title="Texte proposé à la case dans le QCM" />\n'

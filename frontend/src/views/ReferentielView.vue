@@ -429,14 +429,41 @@ function cleLigne(r, i) { return r.id ?? i }
           <label>DETAILS (libellé affiché dans le QCM + valeur cachée /5)</label>
           <div class="lignes-edit">
             <div v-for="(d, i) in forme.details" :key="i" class="ligne-edit">
-              <input v-model="d.libelle_descriptif" placeholder="Libellé du détail" title="Texte proposé à la case dans le QCM" />
-              <input v-model.number="d.valeur" type="number" step="0.5" style="width:80px" title="Valeur cachée du détail (contribute au score /5)" />
+              <input v-model="d.libelle_descriptif" placeholder="Libellé du détail" style="flex:1"
+                 title="Texte proposé à la case dans le QCM" />
+              <select v-model.number="d.sens" style="width:104px"   <!-- PATCH 12 -->
+                title="Type de valeur : unique (un chiffre) ou intervalle (min-max, ajustable par étoiles)">
+                <option :value="1">Unique</option><option :value="2">Intervalle</option></select>
+              <template v-if="Number(d.sens) === 2">
+                <input v-model.number="d.valeur_min" type="number" step="0.5" style="width:60px" title="Borne minimale" placeholder="min" />
+                <input v-model.number="d.valeur_max" type="number" step="0.5" style="width:60px" title="Borne maximale" placeholder="max" />
+              </template>
+              <input v-else v-model.number="d.valeur" type="number" step="0.5" style="width:60px" title="Valeur cachée du détail (contribute au score /5)" />
               <button class="btn ghost small" type="button" title="Monter ce détail" @click="monter(forme.details, i)">↑</button>
               <button class="btn ghost small" type="button" title="Descendre ce détail" @click="descendre(forme.details, i)">↓</button>
               <button class="btn danger small" type="button" title="Retirer ce détail du critère" @click="forme.details.splice(i, 1)">✕</button>
             </div>
             <button class="btn ghost small" type="button" title="Ajouter une ligne de détail au QCM" @click="ajouterDetail">+ Ajouter un détail</button>
+            <select v-if="(donnees.details_criteres || []).some(x => !x.critere_id)"   <!-- PATCH 12 : bibliothèque -->
+              style="margin-top:6px" title="Ajouter un détail existant depuis la bibliothèque Détails Critères"
+              @change="ajouterDetailBiblio">
+              <option value="">+ Depuis la bibliothèque…</option>
+              <option v-for="b in (donnees.details_criteres || []).filter(x => !x.critere_id)" :key="b.id" :value="b.id">{{ b.libelle_descriptif }}</option>
+            </select>
           </div>
+        </template>
+
+        <template v-if="forme.t === 'details_criteres'">   <!-- PATCH 12 -->
+          <div class="field"><label>DESCRIPTIF</label><input v-model="forme.libelle_descriptif" title="Libellé du détail proposé dans les QCM" /></div>
+          <div class="field"><label>TYPE VALEUR</label>
+            <select v-model.number="forme.sens" title="Valeur unique (un chiffre) ou valeur à intervalle (min-max, ajustable par étoiles)">
+              <option :value="1">Valeur unique</option><option :value="2">Valeur à intervalle</option></select></div>
+          <div class="field" v-if="Number(forme.sens) === 2"><label>MIN / MAX</label>
+            <div style="display:flex;gap:8px">
+              <input v-model.number="forme.valeur_min" type="number" step="0.5" title="Borne minimale de l'intervalle" />
+              <input v-model.number="forme.valeur_max" type="number" step="0.5" title="Borne maximale de l'intervalle" /></div></div>
+          <div class="field" v-else><label>VALEUR</label><input v-model.number="forme.valeur" type="number" step="0.5" title="Valeur cachée du détail" /></div>
+          <div class="field"><label>ACTIF</label><input type="checkbox" v-model="forme.actif" style="width:auto" title="Détail actif (proposé dans les QCM)" /></div>
         </template>
 
         <template v-if="forme.t === 'profils'">

@@ -3,7 +3,7 @@
      Critères du benchmark chargés pour tous via /navigation/criteres.
      Benchmark avec barres visuelles. Consultation seule. -->
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'   // PATCH 12
 import api from '../api/client'
 import { useAuth } from '../stores/auth'
 
@@ -18,6 +18,8 @@ const benchmarkCritere = ref('')
 const benchmark = ref([])
 const historique = ref([])
 const criteres = ref([])
+const sections = ref([])   // PATCH 12
+const filtreSection = ref('')   // PATCH 12
 
 async function afficher() {
   if (!salarieId.value || !campagneId.value) return
@@ -29,6 +31,7 @@ async function afficher() {
 
 onMounted(async () => {
   salaries.value = (await api.get('/navigation/salaries')).data
+  try { sections.value = (await api.get('/navigation/sections')).data } catch { sections.value = [] }   // PATCH 12
   criteres.value = (await api.get('/navigation/criteres')).data
   try {
     const { data } = await api.get('/espace')
@@ -40,6 +43,15 @@ onMounted(async () => {
   if (moi) { salarieId.value = moi.id; await afficher() }
 })
 
+const salariesAffiches = computed(() => filtreSection.value   // PATCH 12
+  ? salaries.value.filter(s => s.section_id === filtreSection.value)
+  : salaries.value)
+function surFiltreSection() {   // PATCH 12
+  if (!salariesAffiches.value.some(s => s.id === salarieId.value)) {
+    salarieId.value = salariesAffiches.value[0]?.id || ''
+    afficher()
+  }
+}
 async function lancerBenchmark() {
   if (!benchmarkCritere.value || !campagneId.value) return
   benchmark.value = (await api.get('/navigation/benchmark', {
@@ -56,7 +68,12 @@ const maxBench = () => Math.max(...benchmark.value.map(b => b.moyenne || 0), 5)
     <div class="barre">
       <select v-model="salarieId" @change="afficher" class="sel-large"
         title="Salarié affiché (vous par défaut ; managers : votre périmètre)">
-        <option v-for="s in salaries" :key="s.id" :value="s.id">{{ s.matricule }} – {{ s.nom }}</option>
+        <option v-for="s in salariesAffiches" :key="s.id" :value="s.id">{{ s.matricule }} – {{ s.nom }}</option>   <!-- PATCH 12 -->
+      </select>
+      <select v-model="filtreSection" class="sel-large" @change="surFiltreSection"   <!-- PATCH 12 -->
+        title="Filtrer par section (sections de votre périmètre)">
+        <option value="">— Toutes les sections —</option>
+        <option v-for="sc in sections" :key="sc.id" :value="sc.id">{{ sc.libelle }}</option>
       </select>
       <div class="tabs" style="margin:0">
         <div class="tab" :class="{ active: mode === 'GRAPHE' }" title="Vue graphique par critère" @click="mode = 'GRAPHE'">GRAPHE</div>

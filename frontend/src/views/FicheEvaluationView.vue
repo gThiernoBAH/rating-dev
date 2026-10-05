@@ -57,10 +57,18 @@ const peutApprouver = computed(() => fiche.value?.mon_etape === 'N+2' && fiche.v
 function surClic(ligne, etape) {
   if ((etape === 'N' && !peutSaisirN.value) || (etape === 'N+1' && !peutSaisirN1.value)) return
   qcm.value = { ligne, etape }
-  reponse.value = { detailId: null, commentaire: '' }
+  reponse.value = { detailId: null, commentaire: '', etoiles: 1,   // PATCH 12
+    libelle: (ligne.libelle_perso || ligne.critere_libelle || '') }
 }
 
 async function validerQcm() {
+  // PATCH 12 — critère editable : le salarié (N) peut préciser le libellé de son objectif
+  if (qcm.value.etape === 'N' && qcm.value.ligne.editable
+      && (reponse.value.libelle || '').trim() !== (qcm.value.ligne.critere_libelle || '').trim()) {
+    try { await api.post('/evaluations/' + route.params.evaluationId + '/libelle-critere',
+      { critere_id: qcm.value.ligne.critere_id, libelle: reponse.value.libelle.trim() }) }
+    catch (e) { erreur.value = e.response?.data?.detail; return }
+  }
   if (!reponse.value.detailId || !reponse.value.commentaire.trim()) {
     erreur.value = "Cochez une description ET saisissez un commentaire (obligatoire pour l'objectivité du jugement)."
     return
@@ -71,6 +79,7 @@ async function validerQcm() {
       critere_id: qcm.value.ligne.critere_id,
       critere_detail_id: reponse.value.detailId,
       commentaire: reponse.value.commentaire.trim(),
+      valeur_choisie: valeurEtoile.value,   // PATCH 12 : étoiles intervalle
     })
     qcm.value = null
     await charger()
@@ -158,6 +167,14 @@ async function signerMonEtape() {
   } catch (e) { erreur.value = e.response?.data?.detail }
 }
 
+/* PATCH 12 — détail choisi + valeur étoile (intervalle min/milieu/max) */
+const detailChoisi = computed(() => (qcm.value?.ligne.details || []).find(d => d.id === reponse.value.detailId) || null)
+const valeurEtoile = computed(() => {
+  const d = detailChoisi.value
+  if (!d || Number(d.sens) !== 2) return null
+  const min = Number(d.valeur_min ?? d.valeur), max = Number(d.valeur_max ?? d.valeur)
+  return [min, (min + max) / 2, max][reponse.value.etoiles - 1]
+})
 const COLONNES = [
   { key: 'numero', label: 'N°', align: 'center', searchable: false },
   { key: 'critere_libelle', label: 'Critère' },
@@ -292,6 +309,12 @@ const COLONNES = [
         </div>
         <p class="qcm-consigne">Cochez la description qui correspond le mieux à vos aptitudes.
            Il n'y a pas de bonne ou mauvaise réponse.</p>
+        <!-- PATCH 12 : libellé editable (objectif « A REMPLIR ») -->
+        <div v-if="qcm.etape === \'N\' && qcm.ligne.editable" class="qcm-libelle-edit">
+          <label>LIBELLÉ DU CRITÈRE (à renseigner)</label>
+          <input v-model="reponse.libelle"
+            title="Libellé de votre objectif — pré-rempli depuis la campagne précédente si disponible" />
+        </div>
 
         <div class="qcm-options">
           <label v-for="(d, i) in qcm.ligne.details" :key="d.id"
@@ -304,7 +327,18 @@ const COLONNES = [
           </label>
         </div>
 
-        <div class="qcm-commentaire">
+                <!-- PATCH 12 : étoiles sur les détails à intervalle (min / milieu / max) -->
+        <div v-if="detailChoisi && Number(detailChoisi.sens) === 2" class="qcm-etoiles">
+          <label>Degré d'appréciation — {{ detailChoisi.valeur_min }} à {{ detailChoisi.valeur_max }}
+            (1 étoile = minimum, 3 étoiles = maximum de l'intervalle)</label>
+          <div class="etoiles">
+            <button v-for="n in 3" :key="n" type="button" class="etoile-btn"
+              :class="{ pleine: n <= reponse.etoiles }"
+              :title="n + ' étoile(s)'" @click="reponse.etoiles = n">★</button>
+          </div>
+        </div>
+
+<div class="qcm-commentaire">
           <label>COMMENTAIRE — OBLIGATOIRE</label>
           <textarea rows="3" v-model="reponse.commentaire" placeholder="Justifiez votre choix…"
             title="Obligatoire pour l'objectivité du jugement"></textarea>
@@ -409,6 +443,15 @@ b { color: var(--color-brand-dark); font-size: 11px; margin-right: 6px; }
 .qcm-check { color: var(--color-brand); flex-shrink: 0; }
 .qcm-commentaire label { font-size: var(--font-size-xs); font-weight: 800; letter-spacing: .5px; margin-bottom: var(--space-1); }
 .qcm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-6); }
+
+/* ---------- PATCH 12 : étoiles + libellé editable ---------- */
+.qcm-etoiles { margin-bottom: var(--space-6); }
+.qcm-etoiles label { font-size: var(--font-size-xs); font-weight: 800; letter-spacing: .5px; margin-bottom: var(--space-1); }
+.etoiles { display: flex; gap: 4px; }
+.etoile-btn { font-size: 26px; line-height: 1; border: none; background: none; cursor: pointer;
+  color: var(--color-border); padding: 2px 4px; }
+.etoile-btn.pleine { color: #f59e0b; }
+.qcm-libelle-edit { margin-bottom: var(--space-4); }
 
 /* ---------- PATCH 8 — mobile : cartes empilées ---------- */
 .cartes-mobile { display: flex; flex-direction: column; gap: 10px; }
